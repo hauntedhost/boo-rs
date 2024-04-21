@@ -96,9 +96,61 @@ fn get_last(messages: &Vec<String>, n: usize) -> Vec<String> {
     latest_messages
 }
 
-fn ui(frame: &mut Frame, input: &str, messages: &Vec<String>) {
-    let vertical = Layout::vertical([Constraint::Min(1), Constraint::Length(3)]);
-    let [messages_area, input_area] = vertical.areas(frame.size());
+fn ui(frame: &mut Frame, input: &str, messages: &Vec<String>, logs: &Vec<String>) {
+    let outer_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(vec![Constraint::Min(1), Constraint::Length(3)])
+        .split(frame.size());
+
+    let inner_layout = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints(vec![Constraint::Percentage(70), Constraint::Percentage(30)])
+        .split(outer_layout[0]);
+
+    let messages_area = inner_layout[0];
+    let logs_area = inner_layout[1];
+    let input_area = outer_layout[1];
+
+    // log area
+    let last_logs = logs;
+    let max_lines = (logs_area.height - 2) as usize;
+
+    let mut line_count = 0;
+    let mut log_list: Vec<ListItem> = vec![];
+    for log in last_logs.iter().rev() {
+        let json: serde_json::Value = serde_json::from_str(log).unwrap();
+        let pretty_json = serde_json::to_string_pretty(&json).unwrap();
+        let formatted_log = format!("=> {}", pretty_json.trim());
+
+        let width = (logs_area.width - 2) as usize;
+        let wrapped_texts = textwrap::wrap(&formatted_log, width);
+        let lines = wrapped_texts
+            .iter()
+            .map(|s| Line::from(Span::raw(s.to_string())))
+            .collect::<Vec<_>>();
+
+        if line_count + lines.len() > max_lines {
+            let lines_fit = max_lines - line_count;
+            if lines_fit > 0 {
+                // Only take as many lines as we can fit
+                let mut sliced_lines = lines.into_iter().rev().take(lines_fit).collect::<Vec<_>>();
+                sliced_lines.reverse();
+                log_list.push(ListItem::from(Text::from(sliced_lines)));
+            }
+            break;
+        } else {
+            log_list.push(ListItem::from(Text::from(lines.clone())));
+            line_count += lines.len();
+        }
+    }
+
+    log_list.reverse();
+
+    let logs = List::new(log_list)
+        .direction(ListDirection::TopToBottom)
+        .block(Block::default().borders(Borders::ALL).title("Logs"));
+
+    frame.render_widget(logs, logs_area);
 
     // messages area
     let message_count = (messages_area.height - 2) as usize;
@@ -110,7 +162,9 @@ fn ui(frame: &mut Frame, input: &str, messages: &Vec<String>) {
         list.push(ListItem::new(content));
     }
 
-    let messages = List::new(list).block(Block::default().borders(Borders::ALL).title("Chat"));
+    let messages = List::new(list)
+        .direction(ListDirection::TopToBottom)
+        .block(Block::default().borders(Borders::ALL).title("Chat"));
     frame.render_widget(messages, messages_area);
 
     // input area
@@ -125,14 +179,17 @@ fn ui(frame: &mut Frame, input: &str, messages: &Vec<String>) {
 }
 
 fn handle_events(
-    username: &String,
+    username: &mut String,
     input: &mut String,
     messages: &mut Vec<String>,
+    logs: &mut Vec<String>,
     rx: &mut Receiver<String>,
     handle: &ezsockets::Client<client::Client>,
 ) -> io::Result<bool> {
     match rx.try_recv() {
         Ok(message_payload) => {
+            logs.push(message_payload.clone());
+
             if let Some(response) = parse_response(&message_payload) {
                 let Response {
                     event,
@@ -166,6 +223,20 @@ fn handle_events(
             }
 
             if key.code == KeyCode::Enter {
+                // TODO: fix username change logic
+                //   1. push this message uniquely, e.g. "user x has changed their name to y"
+                //   2. the server needs to handle the change too
+                //   3. the rx.try_recv() also has to handle the name change broadcast
+                // if input.starts_with("/username") {
+                //     let prefix = "/username";
+                //     let new_username = &input.trim()[prefix.len()..];
+                //     if !new_username.is_empty() {
+                //         *username = new_username.trim().to_string();
+                //     } else {
+                //         return Ok(false);
+                //     }
+                // }
+
                 if input.len() > 0 {
                     let message = format!("{username}: {input}");
                     messages.push(message.clone());
@@ -203,9 +274,10 @@ async fn main() -> io::Result<()> {
     stdout().execute(EnterAlternateScreen)?;
     let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
 
-    let username = get_username();
+    let mut username = get_username();
     let mut input = "".to_string();
     let mut messages: Vec<String> = vec![];
+    let mut logs: Vec<String> = vec![];
     let mut should_quit = false;
 
     handle
@@ -213,8 +285,15 @@ async fn main() -> io::Result<()> {
         .expect("call join error");
 
     while !should_quit {
-        terminal.draw(|f| ui(f, &input, &messages))?;
-        should_quit = handle_events(&username, &mut input, &mut messages, &mut rx, &handle)?;
+        terminal.draw(|f| ui(f, &input, &messages, &logs))?;
+        should_quit = handle_events(
+            &mut username,
+            &mut input,
+            &mut messages,
+            &mut logs,
+            &mut rx,
+            &handle,
+        )?;
     }
 
     disable_raw_mode()?;

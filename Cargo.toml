@@ -12,6 +12,7 @@ ezsockets = { version = "0.6.2", features = ["tokio-rustls", "rustls"] }
 rand = "0.8.5"
 ratatui = "0.26.2"
 serde_json = "1.0.116"
+textwrap = "0.16.1"
 tokio = { version = "1.37.0", features = ["full"] }
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
