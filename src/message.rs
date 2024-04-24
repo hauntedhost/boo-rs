@@ -1,4 +1,6 @@
-use serde_json::{from_str, json, to_string};
+use serde_json::{from_str, json, to_string, Value};
+
+const DEFAULT_TOPIC: &str = "relay:lobby";
 
 #[derive(Default, Debug)]
 pub enum Event {
@@ -39,27 +41,19 @@ pub fn message_text(message: Message) -> String {
         Event::Shout => "shout",
     };
 
-    let topic = topic.unwrap_or("relay:lobby".to_string());
+    let topic = topic.unwrap_or(DEFAULT_TOPIC.to_string());
     let payload = parse_payload(payload);
-    let message_ref = json_stringify(message_ref);
-    let join_ref = json_stringify(join_ref);
 
-    format!(r#"[{join_ref}, {message_ref}, "{topic}", "{event}", {payload}]"#)
+    let json = to_string(&json!([join_ref, message_ref, topic, event, payload]))
+        .expect("Failed to serialize JSON");
+
+    json
 }
 
-fn parse_payload(payload: Payload) -> String {
-    let json = match payload {
+fn parse_payload(payload: Payload) -> Value {
+    match payload {
         Payload::Null => json!(null),
         Payload::Wrap(text) => json!({"message": text}),
-        Payload::Raw(json_str) => from_str(&json_str).expect("Failed to parse JSON string"),
-    };
-
-    to_string(&json).expect("Failed to serialize JSON")
-}
-
-fn json_stringify(s: Option<String>) -> String {
-    match s {
-        Some(string) => to_string(&string).unwrap(),
-        None => to_string(&json!(null)).unwrap(),
+        Payload::Raw(json_str) => from_str(&json_str).expect("Failed to parse JSON payload"),
     }
 }
