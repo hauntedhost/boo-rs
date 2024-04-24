@@ -31,37 +31,44 @@ pub fn render(frame: &mut Frame, input: &str, messages: &Vec<String>, logs: &Vec
     frame.set_cursor(x, y);
 }
 
-// TODO: wrap lines like in logs_widgets
 fn build_messages_widget(messages_area: Rect, messages: &Vec<String>) -> List {
-    let message_count = (messages_area.height - 2) as usize;
-    let last_messages = get_last(&messages, message_count);
+    let list_items = build_list_items(messages_area, messages, 2, default_formatter);
 
-    let mut items: Vec<ListItem> = vec![];
-    for message in last_messages.iter() {
-        let content = Line::from(Span::raw(message.to_string()));
-        items.push(ListItem::new(content));
-    }
+    // pad items to push chat to the bottom
+    let padded_items = pad_list(list_items.clone(), messages_area.height - 2);
 
-    let message_list = List::new(items)
+    let message_list = List::new(padded_items)
         .direction(ListDirection::TopToBottom)
         .block(Block::default().borders(Borders::ALL).title("Chat"));
-
     message_list
 }
 
 fn build_logs_widget(logs_area: Rect, logs: &Vec<String>) -> List {
-    let last_logs = logs;
-    let max_lines = (logs_area.height - 2) as usize;
+    let log_items = build_list_items(logs_area, logs, 2, json_formatter);
+    let log_list = List::new(log_items)
+        .direction(ListDirection::TopToBottom)
+        .block(Block::default().borders(Borders::ALL).title("Logs"));
+    log_list
+}
+
+fn build_list_items<F>(
+    area: Rect,
+    all_items: &Vec<String>,
+    padding: u16,
+    formatter: F,
+) -> Vec<ListItem>
+where
+    F: Fn(&String) -> String,
+{
+    let max_lines = (area.height - padding) as usize;
 
     let mut line_count = 0;
-    let mut log_items: Vec<ListItem> = vec![];
-    for log in last_logs.iter().rev() {
-        let json: serde_json::Value = serde_json::from_str(log).unwrap();
-        let pretty_json = serde_json::to_string_pretty(&json).unwrap();
-        let formatted_log = format!("=> {}", pretty_json.trim());
+    let mut items: Vec<ListItem> = vec![];
+    for item in all_items.iter().rev() {
+        let formatted_item = formatter(&item);
 
-        let width = (logs_area.width - 2) as usize;
-        let wrapped_texts = textwrap::wrap(&formatted_log, width);
+        let width = (area.width - padding) as usize;
+        let wrapped_texts = textwrap::wrap(&formatted_item, width);
         let lines = wrapped_texts
             .iter()
             .map(|s| Line::from(Span::raw(s.to_string())))
@@ -73,38 +80,37 @@ fn build_logs_widget(logs_area: Rect, logs: &Vec<String>) -> List {
                 // Only take as many lines as we can fit
                 let mut sliced_lines = lines.into_iter().rev().take(lines_fit).collect::<Vec<_>>();
                 sliced_lines.reverse();
-                log_items.push(ListItem::from(Text::from(sliced_lines)));
+                items.push(ListItem::from(Text::from(sliced_lines)));
             }
             break;
         } else {
-            log_items.push(ListItem::from(Text::from(lines.clone())));
+            items.push(ListItem::from(Text::from(lines.clone())));
             line_count += lines.len();
         }
     }
 
-    log_items.reverse();
-
-    let log_list = List::new(log_items)
-        .direction(ListDirection::TopToBottom)
-        .block(Block::default().borders(Borders::ALL).title("Logs"));
-
-    log_list
+    items.reverse();
+    items
 }
 
-fn get_last(messages: &Vec<String>, n: usize) -> Vec<String> {
-    let start = if messages.len() > n {
-        messages.len() - n
-    } else {
-        0
-    };
+fn default_formatter(string: &String) -> String {
+    string.clone()
+}
 
-    // Get the last 'take_last' messages or all messages if fewer than 'n'
-    let mut latest_messages: Vec<String> = messages[start..].to_vec();
+fn json_formatter(string: &String) -> String {
+    let json: serde_json::Value = serde_json::from_str(string).unwrap();
+    let pretty_json = serde_json::to_string_pretty(&json).unwrap();
+    let formatted_log = format!("=> {}", pretty_json.trim());
 
-    // Pad with empty strings if there are less than 'n' messages
-    while latest_messages.len() < n {
-        latest_messages.insert(0, "".to_string());
+    formatted_log
+}
+
+fn pad_list(mut items: Vec<ListItem>, count: u16) -> Vec<ListItem> {
+    let count = count as usize;
+
+    while items.len() < count {
+        items.insert(0, ListItem::from(Text::from("")));
     }
 
-    latest_messages
+    items
 }
