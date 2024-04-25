@@ -2,6 +2,7 @@ mod client;
 mod events;
 mod message;
 mod ui;
+mod user;
 
 use client::{Call, Client};
 use crossterm::terminal::{
@@ -16,6 +17,7 @@ use std::env;
 use std::io::{self, stdout};
 use tokio::sync::mpsc;
 use url::Url;
+use user::User;
 
 const DEFAULT_BASE_URL: &str = "ws://localhost:4000";
 
@@ -43,7 +45,7 @@ async fn main() -> io::Result<()> {
     let relay_url = get_relay_url();
     let config = ClientConfig::new(relay_url);
     let (tx, mut rx) = mpsc::channel::<String>(32);
-    let (handle, future) = ezsockets::connect(|handle| Client { handle, tx }, config).await;
+    let (handle, future) = ezsockets::connect(|handle| Client::new(handle, tx), config).await;
 
     tokio::spawn(async move {
         future.await.unwrap();
@@ -53,20 +55,18 @@ async fn main() -> io::Result<()> {
     stdout().execute(EnterAlternateScreen)?;
     let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
 
-    let mut username = get_username();
+    let mut user = User::new(get_username());
     let mut input = "".to_string();
     let mut messages: Vec<String> = vec![];
     let mut logs: Vec<String> = vec![];
     let mut should_quit = false;
 
-    handle
-        .call(Call::Join(username.clone()))
-        .expect("join error");
+    handle.call(Call::Join(user.clone())).expect("join error");
 
     while !should_quit {
         terminal.draw(|f| ui::render(f, &input, &messages, &logs))?;
         should_quit = handle_events(
-            &mut username,
+            &mut user,
             &mut input,
             &mut messages,
             &mut logs,

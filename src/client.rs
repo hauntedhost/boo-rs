@@ -1,15 +1,39 @@
 use crate::message::{self, message_text, Message};
+use crate::user::User;
 use async_trait::async_trait;
+use serde_json::json;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use tokio::sync::mpsc;
 
 pub struct Client {
     pub handle: ezsockets::Client<Self>,
     pub tx: mpsc::Sender<String>,
+    join_ref_counter: AtomicUsize,
+    ref_counter: AtomicUsize,
+}
+
+impl Client {
+    pub fn new(handle: ezsockets::Client<Self>, tx: mpsc::Sender<String>) -> Self {
+        Self {
+            handle,
+            tx,
+            join_ref_counter: AtomicUsize::new(1),
+            ref_counter: AtomicUsize::new(1),
+        }
+    }
+
+    fn generate_join_ref(&self) -> usize {
+        self.join_ref_counter.fetch_add(1, Ordering::SeqCst)
+    }
+
+    fn generate_ref(&self) -> usize {
+        self.ref_counter.fetch_add(1, Ordering::SeqCst)
+    }
 }
 
 pub enum Call {
-    Join(String),
-    Shout(String, String),
+    Join(User),
+    Shout(User, String),
 }
 
 #[async_trait]
@@ -33,25 +57,32 @@ impl ezsockets::ClientExt for Client {
 
     async fn on_call(&mut self, call: Self::Call) -> Result<(), ezsockets::Error> {
         match call {
-            Call::Join(join_ref) => {
-                tracing::info!("sending join request");
+            Call::Join(user) => {
+                tracing::info!("sending join request for {}", user.username.clone());
+
+                let payload = json!({"user": user});
 
                 let text = message_text(Message {
                     event: message::Event::Join,
-                    join_ref: Some(join_ref),
+                    payload: message::Payload::Raw(payload),
+                    join_ref: Some(self.generate_join_ref()),
+                    message_ref: self.generate_ref(),
                     ..Default::default()
                 });
 
                 self.handle.text(text).expect("send join error");
             }
 
-            Call::Shout(message, message_ref) => {
-                tracing::info!("sending shout message: {message}");
+            Call::Shout(user, message) => {
+                tracing::info!(
+                    "sending shout message for {}: {message}",
+                    user.username.clone()
+                );
 
                 let text = message_text(Message {
                     event: message::Event::Shout,
                     payload: message::Payload::Wrap(message),
-                    message_ref: Some(message_ref),
+                    message_ref: self.generate_ref(),
                     ..Default::default()
                 });
 

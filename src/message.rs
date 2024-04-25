@@ -1,4 +1,4 @@
-use serde_json::{from_str, json, to_string, Value};
+use serde_json::{json, to_string, Value};
 
 const DEFAULT_TOPIC: &str = "relay:lobby";
 
@@ -15,7 +15,7 @@ pub enum Payload {
     #[default]
     Null,
     Wrap(String),
-    Raw(String),
+    Raw(Value),
 }
 
 #[derive(Default, Debug)]
@@ -23,8 +23,8 @@ pub struct Message {
     pub event: Event,
     pub topic: Option<String>,
     pub payload: Payload,
-    pub message_ref: Option<String>,
-    pub join_ref: Option<String>,
+    pub message_ref: usize,
+    pub join_ref: Option<usize>,
 }
 
 pub fn message_text(message: Message) -> String {
@@ -54,6 +54,6 @@ fn parse_payload(payload: Payload) -> Value {
     match payload {
         Payload::Null => json!(null),
         Payload::Wrap(text) => json!({"message": text}),
-        Payload::Raw(json_str) => from_str(&json_str).expect("Failed to parse JSON payload"),
+        Payload::Raw(json) => json,
     }
 }
