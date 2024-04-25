@@ -1,12 +1,74 @@
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
-use std::io::Result;
+use serde::{Deserialize, Deserializer, Serialize};
+use std::collections::HashMap;
 use tokio::sync::mpsc::Receiver;
 
-use crate::{
-    client::{self, Call},
-    user::User,
-};
+use crate::client::{self, Call};
+use crate::user::User;
 
+// The server sends messages as an array:
+// [join_ref, message_ref, topic, event, payload]
+type ServerMessage = (
+    Option<i32>, // join_ref
+    Option<i32>, // ref
+    String,      // topic
+    String,      // event
+    Payload,     // payload
+);
+
+// Parsed message via custom serializer
+#[allow(dead_code)]
+#[derive(Default, Debug)]
+struct Message {
+    join_ref: Option<i32>,
+    message_ref: Option<i32>,
+    topic: String,
+    event: String,
+    payload: Payload,
+}
+
+impl<'de> Deserialize<'de> for Message {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let server_message = ServerMessage::deserialize(deserializer)?;
+        Ok(Message::from(server_message))
+    }
+}
+
+impl From<ServerMessage> for Message {
+    fn from(server_message: ServerMessage) -> Self {
+        Message {
+            join_ref: server_message.0,
+            message_ref: server_message.1,
+            topic: server_message.2,
+            event: server_message.3,
+            payload: server_message.4,
+        }
+    }
+}
+
+#[derive(Default, Debug, Serialize, Deserialize)]
+struct Payload {
+    event: Option<String>,
+    username: Option<String>,
+    message: Option<String>,
+    joins: Option<HashMap<String, UserPresence>>,
+    leaves: Option<HashMap<String, UserPresence>>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct UserPresence {
+    metas: Vec<UserMeta>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct UserMeta {
+    username: String,
+}
+
+// The response we will build and use internally
 #[derive(Default, Debug)]
 pub struct Response {
     pub event: String,
@@ -16,6 +78,38 @@ pub struct Response {
     pub leaves: Vec<User>,
 }
 
+fn parse_response(json_data: &str) -> Option<Response> {
+    let message: Message = serde_json::from_str(json_data).unwrap();
+
+    let response = Response {
+        event: message.event,
+        username: message.payload.username.unwrap_or_default(),
+        message: message.payload.message.unwrap_or_default(),
+        joins: extract_first_users(message.payload.joins),
+        leaves: extract_first_users(message.payload.leaves),
+    };
+
+    Some(response)
+}
+
+fn extract_first_users(joins: Option<HashMap<String, UserPresence>>) -> Vec<User> {
+    let Some(joins) = joins else {
+        return vec![];
+    };
+
+    let mut users = Vec::new();
+    for (user_id, user_presence) in joins {
+        if let Some(first_user) = user_presence.metas.get(0) {
+            users.push(User {
+                uuid: user_id,
+                username: first_user.username.clone(),
+            });
+        }
+    }
+
+    users
+}
+
 pub fn handle_events(
     user: &mut User,
     input: &mut String,
@@ -23,7 +117,7 @@ pub fn handle_events(
     logs: &mut Vec<String>,
     rx: &mut Receiver<String>,
     handle: &ezsockets::Client<client::Client>,
-) -> Result<bool> {
+) -> std::io::Result<bool> {
     let username = &user.username;
 
     match rx.try_recv() {
@@ -58,8 +152,8 @@ pub fn handle_events(
         Err(tokio::sync::mpsc::error::TryRecvError::Empty) => {
             // No messages, do nothing
         }
-        Err(e) => {
-            println!("error={:?}", e);
+        Err(_e) => {
+            // Error, do nothing for now
         }
     }
 
@@ -103,73 +197,4 @@ pub fn handle_events(
     }
 
     Ok(false)
-}
-
-// response is in the form of:
-// [join_ref, message_ref, topic, event, payload]
-fn parse_response(json: &String) -> Option<Response> {
-    let Ok(value) = serde_json::from_str(json) else {
-        return None;
-    };
-
-    if let serde_json::Value::Array(elements) = value {
-        let Some(event) = elements.get(3)?.as_str() else {
-            return None;
-        };
-
-        let Some(payload) = elements.get(4) else {
-            return None;
-        };
-
-        let username = match payload["username"].as_str() {
-            Some(username) => username,
-            None => "",
-        };
-
-        let message = match payload["message"].as_str() {
-            Some(message) => message,
-            None => "",
-        };
-
-        // TODO: streamline joins/leaves parsing
-        let mut joins: Vec<User> = Vec::new();
-        if let Some(serde_json::Value::Object(joins_map)) = payload.get("joins") {
-            for (user_id, metadata) in joins_map {
-                if let Some(serde_json::Value::Array(metas)) = metadata.get("metas") {
-                    if let Some(serde_json::Value::Object(meta)) = metas.get(0) {
-                        let user = User {
-                            uuid: user_id.clone(),
-                            username: meta["username"].as_str().unwrap().to_string(),
-                        };
-                        joins.push(user);
-                    }
-                }
-            }
-        }
-
-        let mut leaves: Vec<User> = Vec::new();
-        if let Some(serde_json::Value::Object(leaves_map)) = payload.get("leaves") {
-            for (user_id, metadata) in leaves_map {
-                if let Some(serde_json::Value::Array(metas)) = metadata.get("metas") {
-                    if let Some(serde_json::Value::Object(meta)) = metas.get(0) {
-                        let user = User {
-                            uuid: user_id.clone(),
-                            username: meta["username"].as_str().unwrap().to_string(),
-                        };
-                        leaves.push(user);
-                    }
-                }
-            }
-        }
-
-        return Some(Response {
-            event: event.to_string(),
-            username: username.to_string(),
-            message: message.to_string(),
-            joins,
-            leaves,
-        });
-    }
-
-    None
 }
