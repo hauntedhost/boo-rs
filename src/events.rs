@@ -124,7 +124,7 @@ pub fn handle_events(
                     log::info!("Shout={:?}", shout);
 
                     if !shout.user.uuid.eq(&user.uuid) {
-                        let message = format!("{}: {}", shout.message, shout.user.username);
+                        let message = format!("{}: {}", shout.user.username, shout.message);
                         messages.push(message);
                     }
                 }
