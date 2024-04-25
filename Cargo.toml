@@ -7,15 +7,16 @@ edition = "2021"
 
 [dependencies]
 async-trait = "0.1.80"
+chrono = "0.4.38"
 crossterm = "0.27.0"
 ezsockets = { version = "0.6.2", features = ["tokio-rustls", "rustls"] }
+fern = "0.6.2"
+log = "0.4.21"
 rand = "0.8.5"
 ratatui = "0.26.2"
 serde = { version = "1.0.198", features = ["derive"] }
 serde_json = "1.0.116"
 textwrap = "0.16.1"
 tokio = { version = "1.37.0", features = ["full"] }
-tracing = "0.1.40"
-tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 url = "2.5.0"
 uuid = { version = "1.8.0", features = ["v4", "serde"] }

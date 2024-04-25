@@ -4,6 +4,7 @@ mod message;
 mod ui;
 mod user;
 
+use chrono::Local;
 use client::{Call, Client};
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
@@ -11,6 +12,7 @@ use crossterm::terminal::{
 use crossterm::ExecutableCommand;
 use events::handle_events;
 use ezsockets::ClientConfig;
+use fern::Dispatch;
 use rand::Rng;
 use ratatui::prelude::*;
 use std::env;
@@ -39,8 +41,10 @@ fn get_relay_url() -> Url {
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
-    // tracing_subscriber::fmt().init();
-    tracing_subscriber::fmt().with_env_filter("off").init();
+    let mut user = User::new(get_username());
+
+    setup_logging(user.username.clone()).expect("Failed to initialize logging.");
+    log::info!("app started");
 
     let relay_url = get_relay_url();
     let config = ClientConfig::new(relay_url);
@@ -55,7 +59,7 @@ async fn main() -> io::Result<()> {
     stdout().execute(EnterAlternateScreen)?;
     let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
 
-    let mut user = User::new(get_username());
+    let mut users: Vec<User> = vec![];
     let mut input = "".to_string();
     let mut messages: Vec<String> = vec![];
     let mut logs: Vec<String> = vec![];
@@ -64,9 +68,10 @@ async fn main() -> io::Result<()> {
     handle.call(Call::Join(user.clone())).expect("join error");
 
     while !should_quit {
-        terminal.draw(|f| ui::render(f, &input, &messages, &logs))?;
+        terminal.draw(|f| ui::render(f, &input, &messages, &logs, &users))?;
         should_quit = handle_events(
             &mut user,
+            &mut users,
             &mut input,
             &mut messages,
             &mut logs,
@@ -77,5 +82,27 @@ async fn main() -> io::Result<()> {
 
     disable_raw_mode()?;
     stdout().execute(LeaveAlternateScreen)?;
+    Ok(())
+}
+
+fn setup_logging(username: String) -> Result<(), fern::InitError> {
+    let log_file = "logs/app.log";
+
+    // file based logging
+    let file_config = Dispatch::new()
+        .format(move |out, message, record| {
+            out.finish(format_args!(
+                "{} [{}] [{}] {}",
+                Local::now().format("[%Y-%m-%d %H:%M:%S]"),
+                username,
+                record.level(),
+                message
+            ))
+        })
+        .level(log::LevelFilter::Info)
+        .chain(fern::log_file(log_file)?);
+
+    file_config.apply()?;
+
     Ok(())
 }
