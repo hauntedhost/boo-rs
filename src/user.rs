@@ -5,6 +5,7 @@ use uuid::Uuid;
 pub struct User {
     pub username: String,
     pub uuid: String,
+    pub online_at: String,
 }
 
 impl User {
@@ -12,6 +13,12 @@ impl User {
         Self {
             username,
             uuid: Uuid::new_v4().to_string(),
+            ..Default::default()
         }
+    }
+
+    pub fn display_name(&self) -> String {
+        let bit = &self.uuid[0..4];
+        format!("{}#{bit}", self.username)
     }
 }

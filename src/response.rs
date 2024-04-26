@@ -48,7 +48,9 @@ struct UserPresence {
 
 #[derive(Serialize, Deserialize, Debug)]
 struct UserMeta {
+    uuid: String,
     username: String,
+    online_at: String,
 }
 
 pub fn parse_response(json_data: &str) -> Response {
@@ -85,6 +87,7 @@ fn extract_first_users(joins: HashMap<String, UserPresence>) -> Vec<User> {
             users.push(User {
                 uuid: user_id,
                 username: first_user.username.clone(),
+                online_at: first_user.online_at.clone(),
             });
         }
     }

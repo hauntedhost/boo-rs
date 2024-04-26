@@ -25,14 +25,16 @@ use crate::events::handle_events;
 use crate::request::{Join, Request};
 use crate::user::User;
 
-const DEFAULT_BASE_URL: &str = "ws://localhost:4000";
-
+// TODO: move to user.rs
 fn get_username() -> String {
     let mut rng = rand::thread_rng();
     let n: u32 = rng.gen_range(1..10_000);
     let username = env::var("NAME").unwrap_or(format!("guest{n}"));
     username
 }
+
+// TODO: where to move all this connect setup logic?
+const DEFAULT_BASE_URL: &str = "ws://localhost:4000";
 
 fn get_relay_url() -> Url {
     let mut base_url = env::var("RELAY_URL")
@@ -47,7 +49,7 @@ fn get_relay_url() -> Url {
 async fn main() -> io::Result<()> {
     let mut user = User::new(get_username());
 
-    setup_logging(user.username.clone()).expect("failed to initialize logging");
+    setup_logging(user.display_name().clone()).expect("failed to initialize logging");
     log::info!("app started");
 
     let relay_url = get_relay_url();
@@ -87,6 +89,7 @@ async fn main() -> io::Result<()> {
 
     disable_raw_mode()?;
     stdout().execute(LeaveAlternateScreen)?;
+
     Ok(())
 }
 
