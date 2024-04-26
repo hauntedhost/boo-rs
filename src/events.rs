@@ -1,107 +1,9 @@
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
-use serde::{Deserialize, Serialize};
-use serde_json::{Result as SerdeResult, Value};
-use std::collections::HashMap;
 use tokio::sync::mpsc::Receiver;
 
 use crate::client::{self, Call, Shout as CallShout};
+use crate::response::{parse_response, Response};
 use crate::user::User;
-
-// The server sends messages as an array:
-// [join_ref, message_ref, topic, event, payload]
-type MessageArray = (Option<u32>, Option<u32>, String, String, Value);
-
-// The response enum we will build based on the event type
-#[derive(Default, Debug)]
-enum Response {
-    #[default]
-    Null,
-    Shout(Shout),
-    PresenceDiff(PresenceDiff),
-    PresenceState(PresenceState),
-}
-
-#[derive(Default, Serialize, Deserialize, Debug)]
-struct Shout {
-    user: User,
-    message: String,
-}
-
-#[derive(Default, Serialize, Deserialize, Debug)]
-struct RawPresenceDiff {
-    joins: HashMap<String, UserPresence>,
-    leaves: HashMap<String, UserPresence>,
-}
-
-#[derive(Default, Debug)]
-struct PresenceDiff {
-    joins: Vec<User>,
-    leaves: Vec<User>,
-}
-
-type RawPresenceState = HashMap<String, UserPresence>;
-
-#[derive(Default, Serialize, Deserialize, Debug)]
-struct PresenceState {
-    users: Vec<User>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct UserPresence {
-    metas: Vec<UserMeta>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct UserMeta {
-    username: String,
-}
-
-fn parse_message_array(json_data: &str) -> SerdeResult<MessageArray> {
-    let message_array: MessageArray = serde_json::from_str(json_data)?;
-    Ok(message_array)
-}
-
-fn parse_response(json_data: &str) -> Response {
-    let Ok((_join_ref, _message_ref, _topic, event, payload)) = parse_message_array(json_data)
-    else {
-        return Response::Null;
-    };
-
-    match event.as_str() {
-        "shout" => {
-            let shout = serde_json::from_value::<Shout>(payload).unwrap();
-            return Response::Shout(shout);
-        }
-        "presence_diff" => {
-            let raw_diff = serde_json::from_value::<RawPresenceDiff>(payload).unwrap();
-            let joins = extract_first_users(raw_diff.joins);
-            let leaves = extract_first_users(raw_diff.leaves);
-            return Response::PresenceDiff(PresenceDiff { joins, leaves });
-        }
-        "presence_state" => {
-            let raw_state = serde_json::from_value::<RawPresenceState>(payload).unwrap();
-            let users = extract_first_users(raw_state);
-            return Response::PresenceState(PresenceState { users });
-        }
-        _ => {
-            return Response::Null;
-        }
-    }
-}
-
-fn extract_first_users(joins: HashMap<String, UserPresence>) -> Vec<User> {
-    let mut users = Vec::new();
-    for (user_id, user_presence) in joins {
-        if let Some(first_user) = user_presence.metas.get(0) {
-            users.push(User {
-                uuid: user_id,
-                username: first_user.username.clone(),
-            });
-        }
-    }
-
-    users
-}
 
 pub fn handle_events(
     user: &mut User,
@@ -181,10 +83,11 @@ pub fn handle_events(
                 if input.len() > 0 {
                     let message = format!("{username}: {input}");
                     messages.push(message.clone());
+
                     handle
                         .call(Call::Shout(CallShout {
                             user: user.clone(),
-                            message,
+                            message: input.clone(),
                         }))
                         .expect("call shout error");
                     input.clear();

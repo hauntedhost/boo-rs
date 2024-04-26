@@ -1,6 +1,7 @@
 mod client;
 mod events;
 mod message;
+mod response;
 mod ui;
 mod user;
 
