@@ -32,8 +32,17 @@ impl Client {
 }
 
 pub enum Call {
-    Join(User),
-    Shout(User, String),
+    Join(Join),
+    Shout(Shout),
+}
+
+pub struct Join {
+    pub user: User,
+}
+
+pub struct Shout {
+    pub user: User,
+    pub message: String,
 }
 
 #[async_trait]
@@ -57,10 +66,10 @@ impl ezsockets::ClientExt for Client {
 
     async fn on_call(&mut self, call: Self::Call) -> Result<(), ezsockets::Error> {
         match call {
-            Call::Join(user) => {
-                log::info!("sending join request for {}", user.username.clone());
+            Call::Join(join) => {
+                log::info!("sending join request for {}", join.user.username.clone());
 
-                let payload = json!({"user": user});
+                let payload = json!({"user": join.user});
 
                 let text = message_text(Message {
                     event: message::Event::Join,
@@ -73,15 +82,16 @@ impl ezsockets::ClientExt for Client {
                 self.handle.text(text).expect("send join error");
             }
 
-            Call::Shout(user, message) => {
+            Call::Shout(shout) => {
                 log::info!(
-                    "sending shout message for {}: {message}",
-                    user.username.clone()
+                    "sending shout message for {}: {}",
+                    shout.user.username,
+                    shout.message
                 );
 
                 let text = message_text(Message {
                     event: message::Event::Shout,
-                    payload: message::Payload::Wrap(message),
+                    payload: message::Payload::Wrap(shout.message),
                     message_ref: self.generate_ref(),
                     ..Default::default()
                 });

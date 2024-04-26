@@ -4,7 +4,7 @@ use serde_json::{Result as SerdeResult, Value};
 use std::collections::HashMap;
 use tokio::sync::mpsc::Receiver;
 
-use crate::client::{self, Call};
+use crate::client::{self, Call, Shout as CallShout};
 use crate::user::User;
 
 // The server sends messages as an array:
@@ -182,7 +182,10 @@ pub fn handle_events(
                     let message = format!("{username}: {input}");
                     messages.push(message.clone());
                     handle
-                        .call(Call::Shout(user.clone(), input.clone()))
+                        .call(Call::Shout(CallShout {
+                            user: user.clone(),
+                            message,
+                        }))
                         .expect("call shout error");
                     input.clear();
                 }

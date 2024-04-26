@@ -21,6 +21,8 @@ use tokio::sync::mpsc;
 use url::Url;
 use user::User;
 
+use crate::client::Join;
+
 const DEFAULT_BASE_URL: &str = "ws://localhost:4000";
 
 fn get_username() -> String {
@@ -65,7 +67,9 @@ async fn main() -> io::Result<()> {
     let mut logs: Vec<String> = vec![];
     let mut should_quit = false;
 
-    handle.call(Call::Join(user.clone())).expect("join error");
+    handle
+        .call(Call::Join(Join { user: user.clone() }))
+        .expect("join error");
 
     while !should_quit {
         terminal.draw(|f| ui::render(f, &input, &messages, &logs, &users))?;
