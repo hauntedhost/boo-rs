@@ -1,19 +1,17 @@
 mod client;
 mod events;
+mod logging;
 mod message;
 mod request;
 mod response;
 mod ui;
 mod user;
 
-use chrono::Local;
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
 use crossterm::ExecutableCommand;
 use ezsockets::ClientConfig;
-use fern::Dispatch;
-use rand::Rng;
 use ratatui::prelude::*;
 use std::env;
 use std::io::{self, stdout};
@@ -22,16 +20,9 @@ use url::Url;
 
 use crate::client::Client;
 use crate::events::handle_events;
+use crate::logging::setup_logging;
 use crate::request::{Join, Request};
 use crate::user::User;
-
-// TODO: move to user.rs
-fn get_username() -> String {
-    let mut rng = rand::thread_rng();
-    let n: u32 = rng.gen_range(1..10_000);
-    let username = env::var("NAME").unwrap_or(format!("guest{n}"));
-    username
-}
 
 // TODO: where to move all this connect setup logic?
 const DEFAULT_BASE_URL: &str = "ws://localhost:4000";
@@ -47,7 +38,7 @@ fn get_relay_url() -> Url {
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
-    let mut user = User::new(get_username());
+    let mut user = User::new(env::var("NAME").ok());
 
     setup_logging(user.display_name().clone()).expect("failed to initialize logging");
     log::info!("app started");
@@ -89,28 +80,6 @@ async fn main() -> io::Result<()> {
 
     disable_raw_mode()?;
     stdout().execute(LeaveAlternateScreen)?;
-
-    Ok(())
-}
-
-fn setup_logging(username: String) -> Result<(), fern::InitError> {
-    let log_file = "logs/app.log";
-
-    // file based logging
-    let file_config = Dispatch::new()
-        .format(move |out, message, record| {
-            out.finish(format_args!(
-                "{} [{}] [{}] {}",
-                Local::now().format("[%Y-%m-%d %H:%M:%S]"),
-                username,
-                record.level(),
-                message
-            ))
-        })
-        .level(log::LevelFilter::Info)
-        .chain(fern::log_file(log_file)?);
-
-    file_config.apply()?;
 
     Ok(())
 }
