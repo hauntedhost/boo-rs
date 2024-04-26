@@ -75,13 +75,13 @@ async fn main() -> io::Result<()> {
     while !should_quit {
         terminal.draw(|f| ui::render(f, &input, &messages, &logs, &users))?;
         should_quit = handle_events(
+            &handle,
+            &mut rx,
             &mut user,
             &mut users,
             &mut input,
             &mut messages,
             &mut logs,
-            &mut rx,
-            &handle,
         )?;
     }
 

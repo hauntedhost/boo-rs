@@ -1,3 +1,4 @@
+/// This module contains all code for rendering the UI within the main app loop.
 use ratatui::{prelude::*, widgets::*};
 
 use crate::user::User;

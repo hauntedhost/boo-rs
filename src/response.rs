@@ -1,3 +1,5 @@
+/// This module contains logic for parsing JSON from the server.
+/// It exposes a single `parse_response` fn which takes a JSON string and returns a `Response` enum.
 use serde::{Deserialize, Serialize};
 use serde_json::{Result as SerdeResult, Value};
 use std::collections::HashMap;

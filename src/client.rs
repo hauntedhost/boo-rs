@@ -1,3 +1,5 @@
+/// This module contains the `Client` struct and ezsockets client implementation.
+/// It handles internal calls and relays messages to the server.
 use crate::message::{self, message_text, Message};
 use crate::user::User;
 use async_trait::async_trait;
