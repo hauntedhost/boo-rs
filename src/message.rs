@@ -1,15 +1,51 @@
+/// This module contains the `Message` struct with implementation logic for:
+///   - Parsing JSON from the server into the `Message` struct
+///   - Serializing the `Message` struct into a JSON payload
 use serde_json::{Result as SerdeResult, Value as SerdeValue};
 
-// The server sends and receives messages as an array:
-// [join_ref, message_ref, topic, event, payload]
-pub type MessageArray = (Option<u32>, Option<u32>, String, String, SerdeValue);
-
-pub fn parse_message_array(json_data: &str) -> SerdeResult<MessageArray> {
-    let message_array: MessageArray = serde_json::from_str(json_data)?;
-    Ok(message_array)
+#[derive(Default, Debug)]
+pub struct Message {
+    pub join_ref: Option<u32>,
+    pub message_ref: Option<u32>,
+    pub topic: String,
+    pub event: String,
+    pub payload: SerdeValue,
 }
 
-pub fn serialize_message_array(message_array: &MessageArray) -> SerdeResult<String> {
-    let json = serde_json::to_string(message_array)?;
-    Ok(json)
+impl Message {
+    // Parse server payload into Message struct
+    pub fn parse_response(json_data: &str) -> SerdeResult<Self> {
+        let message_array: MessageArray = serde_json::from_str(json_data)?;
+        let message = Self {
+            join_ref: message_array.0,
+            message_ref: message_array.1,
+            topic: message_array.2,
+            event: message_array.3,
+            payload: message_array.4,
+        };
+
+        Ok(message)
+    }
+
+    // Serialize Message struct into JSON payload
+    pub fn serialize_request(&self) -> SerdeResult<String> {
+        let message_array: MessageArray = (
+            self.join_ref,
+            self.message_ref,
+            self.topic.clone(),
+            self.event.clone(),
+            self.payload.clone(),
+        );
+        let json = serde_json::to_string(&message_array)?;
+        Ok(json)
+    }
 }
+
+// The server sends and receives messages as a 5-element JSON array:
+type MessageArray = (
+    Option<u32>, // join_ref
+    Option<u32>, // message_ref
+    String,      // topic
+    String,      // event
+    SerdeValue,  // payload
+);

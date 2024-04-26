@@ -18,7 +18,7 @@ pub fn render(
 
     let inner_layout = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints(vec![Constraint::Percentage(70), Constraint::Percentage(30)])
+        .constraints(vec![Constraint::Percentage(80), Constraint::Percentage(20)])
         .split(outer_layout[0]);
 
     // messages area

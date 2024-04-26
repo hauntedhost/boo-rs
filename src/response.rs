@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::message::parse_message_array;
+use crate::message::Message;
 use crate::user::User;
 
 // The response enum we will build based on the event type
@@ -52,24 +52,23 @@ struct UserMeta {
 }
 
 pub fn parse_response(json_data: &str) -> Response {
-    let Ok((_join_ref, _message_ref, _topic, event, payload)) = parse_message_array(json_data)
-    else {
+    let Ok(message) = Message::parse_response(json_data) else {
         return Response::Null;
     };
 
-    match event.as_str() {
+    match message.event.as_str() {
         "shout" => {
-            let shout = serde_json::from_value::<Shout>(payload).unwrap();
+            let shout = serde_json::from_value::<Shout>(message.payload).unwrap();
             return Response::Shout(shout);
         }
         "presence_diff" => {
-            let raw_diff = serde_json::from_value::<RawPresenceDiff>(payload).unwrap();
+            let raw_diff = serde_json::from_value::<RawPresenceDiff>(message.payload).unwrap();
             let joins = extract_first_users(raw_diff.joins);
             let leaves = extract_first_users(raw_diff.leaves);
             return Response::PresenceDiff(PresenceDiff { joins, leaves });
         }
         "presence_state" => {
-            let raw_state = serde_json::from_value::<RawPresenceState>(payload).unwrap();
+            let raw_state = serde_json::from_value::<RawPresenceState>(message.payload).unwrap();
             let users = extract_first_users(raw_state);
             return Response::PresenceState(PresenceState { users });
         }
