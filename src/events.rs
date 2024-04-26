@@ -5,7 +5,8 @@
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 use tokio::sync::mpsc::Receiver;
 
-use crate::client::{self, Call, Shout as CallShout};
+use crate::client;
+use crate::request::{Request, Shout};
 use crate::response::{parse_response, Response};
 use crate::user::User;
 
@@ -88,12 +89,12 @@ pub fn handle_events(
                     let message = format!("{username}: {input}");
                     messages.push(message.clone());
 
-                    handle
-                        .call(Call::Shout(CallShout {
-                            user: user.clone(),
-                            message: input.clone(),
-                        }))
-                        .expect("call shout error");
+                    let request = Request::Shout(Shout {
+                        user: user.clone(),
+                        message: input.clone(),
+                    });
+
+                    handle.call(request).expect("call shout error");
                     input.clear();
                 }
             } else if key.code == KeyCode::Backspace {

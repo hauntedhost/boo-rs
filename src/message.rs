@@ -1,59 +1,15 @@
-use serde_json::{json, to_string, Value};
+use serde_json::{Result as SerdeResult, Value as SerdeValue};
 
-const DEFAULT_TOPIC: &str = "relay:lobby";
+// The server sends and receives messages as an array:
+// [join_ref, message_ref, topic, event, payload]
+pub type MessageArray = (Option<u32>, Option<u32>, String, String, SerdeValue);
 
-#[derive(Default, Debug)]
-pub enum Event {
-    Join,
-    #[default]
-    Shout,
+pub fn parse_message_array(json_data: &str) -> SerdeResult<MessageArray> {
+    let message_array: MessageArray = serde_json::from_str(json_data)?;
+    Ok(message_array)
 }
 
-#[allow(dead_code)]
-#[derive(Default, Debug)]
-pub enum Payload {
-    #[default]
-    Null,
-    Wrap(String),
-    Raw(Value),
-}
-
-#[derive(Default, Debug)]
-pub struct Message {
-    pub event: Event,
-    pub topic: Option<String>,
-    pub payload: Payload,
-    pub message_ref: usize,
-    pub join_ref: Option<usize>,
-}
-
-pub fn message_text(message: Message) -> String {
-    let Message {
-        event,
-        topic,
-        payload,
-        message_ref,
-        join_ref,
-    } = message;
-
-    let event = match event {
-        Event::Join => "phx_join",
-        Event::Shout => "shout",
-    };
-
-    let topic = topic.unwrap_or(DEFAULT_TOPIC.to_string());
-    let payload = parse_payload(payload);
-
-    let json = to_string(&json!([join_ref, message_ref, topic, event, payload]))
-        .expect("Failed to serialize JSON");
-
-    json
-}
-
-fn parse_payload(payload: Payload) -> Value {
-    match payload {
-        Payload::Null => json!(null),
-        Payload::Wrap(text) => json!({"message": text}),
-        Payload::Raw(json) => json,
-    }
+pub fn serialize_message_array(message_array: &MessageArray) -> SerdeResult<String> {
+    let json = serde_json::to_string(message_array)?;
+    Ok(json)
 }

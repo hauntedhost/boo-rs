@@ -1,9 +1,9 @@
 /// This module contains logic for parsing JSON from the server.
 /// It exposes a single `parse_response` fn which takes a JSON string and returns a `Response` enum.
 use serde::{Deserialize, Serialize};
-use serde_json::{Result as SerdeResult, Value};
 use std::collections::HashMap;
 
+use crate::message::parse_message_array;
 use crate::user::User;
 
 // The response enum we will build based on the event type
@@ -32,10 +32,6 @@ pub struct PresenceDiff {
 pub struct PresenceState {
     pub users: Vec<User>,
 }
-
-// The server sends messages as an array:
-// [join_ref, message_ref, topic, event, payload]
-type MessageArray = (Option<u32>, Option<u32>, String, String, Value);
 
 #[derive(Default, Serialize, Deserialize, Debug)]
 struct RawPresenceDiff {
@@ -95,9 +91,4 @@ fn extract_first_users(joins: HashMap<String, UserPresence>) -> Vec<User> {
     }
 
     users
-}
-
-fn parse_message_array(json_data: &str) -> SerdeResult<MessageArray> {
-    let message_array: MessageArray = serde_json::from_str(json_data)?;
-    Ok(message_array)
 }

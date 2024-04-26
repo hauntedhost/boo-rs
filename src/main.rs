@@ -1,17 +1,16 @@
 mod client;
 mod events;
 mod message;
+mod request;
 mod response;
 mod ui;
 mod user;
 
 use chrono::Local;
-use client::{Call, Client};
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
 use crossterm::ExecutableCommand;
-use events::handle_events;
 use ezsockets::ClientConfig;
 use fern::Dispatch;
 use rand::Rng;
@@ -20,9 +19,11 @@ use std::env;
 use std::io::{self, stdout};
 use tokio::sync::mpsc;
 use url::Url;
-use user::User;
 
-use crate::client::Join;
+use crate::client::Client;
+use crate::events::handle_events;
+use crate::request::{Join, Request};
+use crate::user::User;
 
 const DEFAULT_BASE_URL: &str = "ws://localhost:4000";
 
@@ -46,7 +47,7 @@ fn get_relay_url() -> Url {
 async fn main() -> io::Result<()> {
     let mut user = User::new(get_username());
 
-    setup_logging(user.username.clone()).expect("Failed to initialize logging.");
+    setup_logging(user.username.clone()).expect("failed to initialize logging");
     log::info!("app started");
 
     let relay_url = get_relay_url();
@@ -68,9 +69,8 @@ async fn main() -> io::Result<()> {
     let mut logs: Vec<String> = vec![];
     let mut should_quit = false;
 
-    handle
-        .call(Call::Join(Join { user: user.clone() }))
-        .expect("join error");
+    let request = Request::Join(Join { user: user.clone() });
+    handle.call(request).expect("join error");
 
     while !should_quit {
         terminal.draw(|f| ui::render(f, &input, &messages, &logs, &users))?;
