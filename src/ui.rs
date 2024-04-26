@@ -1,15 +1,18 @@
 /// This module contains all code for rendering the UI within the main app loop.
 use ratatui::{prelude::*, widgets::*};
 
-use crate::user::User;
+use crate::app::AppState;
 
 #[allow(unused_variables)]
 pub fn render(
     frame: &mut Frame,
-    input: &str,
-    messages: &Vec<String>,
-    logs: &Vec<String>,
-    users: &Vec<User>,
+    AppState {
+        user,
+        input,
+        messages,
+        logs,
+        users,
+    }: &AppState,
 ) {
     let outer_layout = Layout::default()
         .direction(Direction::Vertical)
@@ -40,7 +43,7 @@ pub fn render(
 
     // input area
     let input_area = outer_layout[1];
-    let input_block = Paragraph::new(input).block(Block::default().borders(Borders::ALL));
+    let input_block = Paragraph::new(input.clone()).block(Block::default().borders(Borders::ALL));
     frame.render_widget(input_block, input_area);
 
     // cursor

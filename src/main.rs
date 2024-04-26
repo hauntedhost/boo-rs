@@ -1,3 +1,4 @@
+mod app;
 mod client;
 mod events;
 mod logging;
@@ -13,27 +14,21 @@ use crossterm::terminal::{
 };
 use crossterm::ExecutableCommand;
 use ratatui::prelude::*;
-use std::env;
 use std::io::{self, stdout};
 
+use crate::app::AppState;
 use crate::events::handle_events;
 use crate::logging::setup_logging;
 use crate::request::{Join, Request};
 use crate::socket::{connect_socket, create_channel};
-use crate::user::User;
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
     // init app state
-    let mut user = User::new(env::var("NAME").ok());
-    let mut users: Vec<User> = vec![];
-    let mut input = "".to_string();
-    let mut messages: Vec<String> = vec![];
-    let mut logs: Vec<String> = vec![];
-    let mut should_quit = false;
+    let mut app = AppState::new();
 
     // init logging
-    setup_logging(user.display_name().clone()).expect("failed to initialize logging");
+    setup_logging(app.user.display_name().clone()).expect("failed to initialize logging");
     log::info!("app started");
 
     // connect websocket
@@ -50,24 +45,16 @@ async fn main() -> io::Result<()> {
     let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
 
     // join server
-    let request = Request::Join(Join { user: user.clone() });
+    let request = Request::Join(Join {
+        user: app.user.clone(),
+    });
     handle.call(request).expect("join error");
 
     // main loop
+    let mut should_quit = false;
     while !should_quit {
-        // draw ui
-        terminal.draw(|f| ui::render(f, &input, &messages, &logs, &users))?;
-
-        // handle events
-        should_quit = handle_events(
-            &handle,
-            &mut rx,
-            &mut user,
-            &mut users,
-            &mut input,
-            &mut messages,
-            &mut logs,
-        )?;
+        terminal.draw(|f| ui::render(f, &app))?; // draw ui
+        should_quit = handle_events(&handle, &mut rx, &mut app)?; // handle input/server events
     }
 
     // cleanup

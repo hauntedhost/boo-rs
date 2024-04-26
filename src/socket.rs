@@ -6,7 +6,6 @@ use url::Url;
 
 use crate::client::Client;
 
-// TODO: where to move all this connect setup logic?
 const DEFAULT_BASE_URL: &str = "ws://localhost:4000";
 
 fn get_relay_url() -> Url {

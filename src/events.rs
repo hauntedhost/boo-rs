@@ -5,19 +5,21 @@
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 use tokio::sync::mpsc::Receiver;
 
+use crate::app::AppState;
 use crate::client;
 use crate::request::{Request, Shout};
 use crate::response::{parse_response, Response};
-use crate::user::User;
 
 pub fn handle_events(
     handle: &ezsockets::Client<client::Client>,
     rx: &mut Receiver<String>,
-    user: &mut User,
-    users: &mut Vec<User>,
-    input: &mut String,
-    messages: &mut Vec<String>,
-    logs: &mut Vec<String>,
+    AppState {
+        user,
+        users,
+        input,
+        messages,
+        logs,
+    }: &mut AppState,
 ) -> std::io::Result<bool> {
     let username = &user.username;
 
