@@ -6,16 +6,8 @@ use url::Url;
 
 use crate::client::Client;
 
-const DEFAULT_BASE_URL: &str = "ws://localhost:4000";
-
-fn get_relay_url() -> Url {
-    let mut base_url = env::var("RELAY_URL")
-        .unwrap_or(DEFAULT_BASE_URL.to_string())
-        .trim_end_matches('/')
-        .to_string();
-    base_url.push_str("/socket/websocket?vsn=2.0.0");
-    Url::parse(&base_url).expect("Invalid relay URL")
-}
+const DEFAULT_URL: &str = "wss://chat.haunted.host";
+const DEV_URL: &str = "ws://localhost:4000";
 
 pub fn create_channel() -> (mpsc::Sender<String>, mpsc::Receiver<String>) {
     mpsc::channel::<String>(32)
@@ -27,8 +19,33 @@ pub async fn connect_socket(
     ezsockets::Client<Client>,
     impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>>,
 ) {
-    let relay_url = get_relay_url();
-    let config = ClientConfig::new(relay_url);
+    let socket_url = get_socket_url();
+    let config = ClientConfig::new(socket_url.clone());
+
+    log::info!("connecting to websocket {} ...", socket_url);
 
     ezsockets::connect(|handle| Client::new(handle, tx), config).await
+}
+
+fn get_socket_url() -> Url {
+    let base_url = if env::var("DEV").unwrap_or_default() == "true" {
+        DEV_URL.to_string()
+    } else if let Ok(custom_url) = env::var("URL") {
+        custom_url
+    } else {
+        DEFAULT_URL.to_string()
+    };
+
+    let mut url = Url::parse(&base_url).expect("Error parsing URL");
+
+    url.set_path("/socket/websocket");
+    url.set_query(Some("vsn=2.0.0"));
+
+    // default to secure wss if not specified
+    match url.scheme() {
+        "ws" | "wss" => (),
+        _ => url.set_scheme("wss").unwrap(),
+    }
+
+    url
 }
