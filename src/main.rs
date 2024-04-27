@@ -19,7 +19,6 @@ use std::io::{self, stdout};
 use crate::app::AppState;
 use crate::events::handle_events;
 use crate::logging::setup_logging;
-use crate::request::{Join, Request};
 use crate::socket::{connect_socket, create_channel};
 
 #[tokio::main]
@@ -43,12 +42,6 @@ async fn main() -> io::Result<()> {
     enable_raw_mode()?;
     stdout().execute(EnterAlternateScreen)?;
     let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
-
-    // join server
-    let request = Request::Join(Join {
-        user: app.user.clone(),
-    });
-    handle.call(request).expect("join error");
 
     // main loop
     let mut should_quit = false;

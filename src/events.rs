@@ -7,22 +7,22 @@ use tokio::sync::mpsc::Receiver;
 
 use crate::app::AppState;
 use crate::client;
-use crate::request::{Request, Shout};
+use crate::request::{Join, Request, Shout};
 use crate::response::{parse_response, Response};
 
 pub fn handle_events(
     handle: &ezsockets::Client<client::Client>,
     rx: &mut Receiver<String>,
+    // app: &mut AppState,
     AppState {
         user,
         users,
         input,
         messages,
         logs,
+        has_joined,
     }: &mut AppState,
 ) -> std::io::Result<bool> {
-    let username = &user.username;
-
     match rx.try_recv() {
         Ok(message_payload) => {
             logs.push(message_payload.clone());
@@ -73,6 +73,24 @@ pub fn handle_events(
             }
 
             if key.code == KeyCode::Enter {
+                // Ignore empty messages
+                if input.len() == 0 {
+                    return Ok(false);
+                }
+
+                // Special case for handling the first message as a join request
+                if *has_joined == false {
+                    user.username = input.clone();
+
+                    let request = Request::Join(Join { user: user.clone() });
+                    handle.call(request).expect("join error");
+
+                    input.clear();
+                    *has_joined = true;
+
+                    return Ok(false);
+                }
+
                 // TODO: fix username change logic
                 //   1. push this message uniquely, e.g. "user x has changed their name to y"
                 //   2. the server needs to handle the change too
@@ -87,18 +105,17 @@ pub fn handle_events(
                 //     }
                 // }
 
-                if input.len() > 0 {
-                    let message = format!("{username}: {input}");
-                    messages.push(message.clone());
+                // Handle normal messages
+                let message = format!("{}: {}", &user.username, input);
+                messages.push(message.clone());
 
-                    let request = Request::Shout(Shout {
-                        user: user.clone(),
-                        message: input.clone(),
-                    });
+                let request = Request::Shout(Shout {
+                    user: user.clone(),
+                    message: input.clone(),
+                });
+                handle.call(request).expect("call shout error");
 
-                    handle.call(request).expect("call shout error");
-                    input.clear();
-                }
+                input.clear();
             } else if key.code == KeyCode::Backspace {
                 input.pop();
             } else if let KeyCode::Char(c) = key.code {

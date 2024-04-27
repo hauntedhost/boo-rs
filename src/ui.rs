@@ -12,6 +12,7 @@ pub fn render(
         messages,
         logs,
         users,
+        has_joined,
     }: &AppState,
 ) {
     let outer_layout = Layout::default()
@@ -43,12 +44,21 @@ pub fn render(
 
     // input area
     let input_area = outer_layout[1];
-    let input_block = Paragraph::new(input.clone()).block(Block::default().borders(Borders::ALL));
+
+    let input_text = if !*has_joined {
+        format!("choose a username > {}", input)
+    } else {
+        input.clone()
+    };
+
+    let input_block =
+        Paragraph::new(input_text.clone()).block(Block::default().borders(Borders::ALL));
+
     frame.render_widget(input_block, input_area);
 
     // cursor
     let size = frame.size();
-    let x = (input.len() + 1) as u16;
+    let x = (input_text.len() + 1) as u16;
     let y = size.bottom() - 2;
     frame.set_cursor(x, y);
 }
