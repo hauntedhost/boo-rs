@@ -5,8 +5,9 @@
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 use tokio::sync::mpsc::Receiver;
 
-use crate::app::AppState;
+use crate::app::{AppState, Onboarding};
 use crate::client;
+use crate::names::{generate_room_name, generate_username};
 use crate::response::{parse_response, Response};
 
 pub fn handle_events(
@@ -63,6 +64,22 @@ pub fn handle_events(
                 return Ok(true);
             }
 
+            if key.code == KeyCode::Up || key.code == KeyCode::Down {
+                match app.onboarding {
+                    Onboarding::ConfirmingUsername => {
+                        app.user.username = generate_username();
+                        app.input = app.user.username.clone();
+                        return Ok(false);
+                    }
+                    Onboarding::ConfirmingRoomName => {
+                        app.room = generate_room_name();
+                        app.input = app.room.clone();
+                        return Ok(false);
+                    }
+                    Onboarding::Completed => (),
+                }
+            }
+
             if key.modifiers.contains(KeyModifiers::ALT) && key.code == KeyCode::Char('s') {
                 app.toggle_sidebar();
                 return Ok(false);
@@ -74,21 +91,41 @@ pub fn handle_events(
                     return Ok(false);
                 }
 
-                // Special case for handling the first message as a join request
-                if !app.has_joined() {
-                    // set username to input
-                    app.user.username = app.input.clone();
+                match app.onboarding {
+                    Onboarding::ConfirmingRoomName => {
+                        // set room to input
+                        app.room = app.input.clone();
 
-                    // send join request
-                    let request = app.join_request();
-                    handle.call(request).expect("join error");
+                        // advance onboarding
+                        app.advance_onboarding();
+                    }
+                    Onboarding::ConfirmingUsername => {
+                        // set username to input
+                        app.user.username = app.input.clone();
 
-                    // clear input and set has_joined to true
-                    app.input.clear();
-                    app.set_has_joined();
+                        // send join request
+                        let request = app.join_request();
+                        handle.call(request).expect("join error");
 
-                    return Ok(false);
+                        // advance onboarding
+                        app.advance_onboarding();
+                    }
+                    Onboarding::Completed => {
+                        // Handle normal messages
+                        let local_message = format!("{}: {}", &app.user.username, app.input);
+                        app.messages.push(local_message);
+
+                        // send shout request
+                        let message = app.input.clone();
+                        let request = app.shout_request(message);
+                        handle.call(request).expect("shout request error");
+
+                        // clear input
+                        app.input.clear();
+                    }
                 }
+
+                return Ok(false);
 
                 // TODO: fix username change logic
                 //   1. push this message uniquely, e.g. "user x has changed their name to y"
@@ -103,21 +140,16 @@ pub fn handle_events(
                 //         return Ok(false);
                 //     }
                 // }
-
-                // Handle normal messages
-                let local_message = format!("{}: {}", &app.user.username, app.input);
-                app.messages.push(local_message);
-
-                // send shout request
-                let message = app.input.clone();
-                let request = app.shout_request(message);
-                handle.call(request).expect("shout request error");
-
-                // clear input
-                app.input.clear();
             } else if key.code == KeyCode::Backspace {
-                // if user has not joined yet, and input is the guest username, clear entire input on backspace
-                if !app.has_joined() && app.input.clone() == app.user.username.clone() {
+                // if confirming username and input is the username, clear entire input on backspace
+                if app.onboarding == Onboarding::ConfirmingUsername
+                    && app.input == app.user.username
+                {
+                    app.input.clear();
+                }
+                // if confirming room and input is room name, clear entire input on backspace
+                else if app.onboarding == Onboarding::ConfirmingRoomName && app.input == app.room
+                {
                     app.input.clear();
                 } else {
                     app.input.pop();

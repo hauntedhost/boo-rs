@@ -3,6 +3,7 @@ mod client;
 mod events;
 mod logging;
 mod message;
+mod names;
 mod request;
 mod response;
 mod socket;

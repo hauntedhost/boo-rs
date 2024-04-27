@@ -1,7 +1,7 @@
 /// This module contains all code for rendering the UI within the main app loop.
 use ratatui::{prelude::*, widgets::*};
 
-use crate::app::{AppState, Sidebar};
+use crate::app::{AppState, Onboarding, Sidebar};
 
 #[allow(unused_variables)]
 pub fn render(frame: &mut Frame, app: &AppState) {
@@ -31,8 +31,8 @@ pub fn render(frame: &mut Frame, app: &AppState) {
         ])
         .split(outer_layout[0]);
 
-    // dim style for widgets if user has not joined yet
-    let widget_style = if app.has_joined() {
+    // dim style for widgets if user has not finished onboarding
+    let widget_style = if app.onboarding == Onboarding::Completed {
         Style::default()
     } else {
         Style::new().dim()
@@ -40,7 +40,8 @@ pub fn render(frame: &mut Frame, app: &AppState) {
 
     // messages area
     let messages_area = inner_layout[0];
-    let messages_widget = build_messages_widget(messages_area, messages).style(widget_style);
+    let messages_widget =
+        build_messages_widget(messages_area, app.room.clone(), messages).style(widget_style);
     frame.render_widget(messages_widget, messages_area);
 
     // sidebar area
@@ -70,15 +71,16 @@ pub fn render(frame: &mut Frame, app: &AppState) {
     frame.set_cursor(x, y);
 }
 
-fn build_messages_widget(area: Rect, messages: &Vec<String>) -> List {
+fn build_messages_widget(area: Rect, room: String, messages: &Vec<String>) -> List {
     let list_items = build_list_items(area, messages, 2, default_formatter);
 
     // pad items to push chat to the bottom
     let padded_items = pad_list(list_items.clone(), area.height - 2);
 
+    let title = format!(" Chat room: {room} ");
     let message_list = List::new(padded_items)
         .direction(ListDirection::TopToBottom)
-        .block(Block::default().borders(Borders::ALL).title("Chat"));
+        .block(Block::default().borders(Borders::ALL).title(title));
     message_list
 }
 
@@ -87,7 +89,7 @@ fn build_users_widget(area: Rect, usernames: &Vec<String>) -> List {
     let items = build_list_items(area, usernames, 2, default_formatter);
     let list = List::new(items)
         .direction(ListDirection::TopToBottom)
-        .block(Block::default().borders(Borders::ALL).title("Users"));
+        .block(Block::default().borders(Borders::ALL).title(" Users "));
     list
 }
 
@@ -96,31 +98,48 @@ fn build_logs_widget(area: Rect, logs: &Vec<String>) -> List {
     let log_items = build_list_items(area, logs, 2, json_formatter);
     let log_list = List::new(log_items)
         .direction(ListDirection::TopToBottom)
-        .block(Block::default().borders(Borders::ALL).title("Logs"));
+        .block(Block::default().borders(Borders::ALL).title(" Logs "));
     log_list
 }
 
 fn build_input_widget(app: &AppState) -> (Paragraph, u16) {
     let input_width: u16;
 
-    // if user has not joined, show a prompt to choose a username
-    let input_paragraph = if !app.has_joined() {
-        // dim the input if input is still the default username
-        let style = if app.input.clone() == app.user.username.clone() {
-            Style::new().italic().dim()
-        } else {
-            Style::default()
-        };
+    let input_paragraph = match app.onboarding {
+        Onboarding::ConfirmingRoomName => {
+            // dim the input if room is still the generated room name
+            let style = if app.input == app.room {
+                Style::new().italic().dim()
+            } else {
+                Style::default()
+            };
 
-        let line = Line::from(vec![
-            Span::raw("Choose a username > "),
-            Span::styled(app.input.clone(), style),
-        ]);
-        input_width = line.width() as u16;
-        Paragraph::new(line)
-    } else {
-        input_width = app.input.len() as u16;
-        Paragraph::new(app.input.clone())
+            let line = Line::from(vec![
+                Span::raw("Enter a room name > "),
+                Span::styled(app.input.clone(), style),
+            ]);
+            input_width = line.width() as u16;
+            Paragraph::new(line)
+        }
+        Onboarding::ConfirmingUsername => {
+            // dim the input if input is still the generated username
+            let style = if app.input == app.user.username {
+                Style::new().italic().dim()
+            } else {
+                Style::default()
+            };
+
+            let line = Line::from(vec![
+                Span::raw("Enter a username > "),
+                Span::styled(app.input.clone(), style),
+            ]);
+            input_width = line.width() as u16;
+            Paragraph::new(line)
+        }
+        Onboarding::Completed => {
+            input_width = app.input.len() as u16;
+            Paragraph::new(app.input.clone())
+        }
     };
 
     let input_block = input_paragraph.block(Block::default().borders(Borders::ALL));
