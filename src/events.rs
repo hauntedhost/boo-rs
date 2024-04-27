@@ -7,7 +7,6 @@ use tokio::sync::mpsc::Receiver;
 
 use crate::app::AppState;
 use crate::client;
-use crate::request::{Join, Request, Shout};
 use crate::response::{parse_response, Response};
 
 pub fn handle_events(
@@ -77,13 +76,14 @@ pub fn handle_events(
 
                 // Special case for handling the first message as a join request
                 if !app.has_joined() {
+                    // set username to input
                     app.user.username = app.input.clone();
 
-                    let request = Request::Join(Join {
-                        user: app.user.clone(),
-                    });
+                    // send join request
+                    let request = app.join_request();
                     handle.call(request).expect("join error");
 
+                    // clear input and set has_joined to true
                     app.input.clear();
                     app.set_has_joined();
 
@@ -105,18 +105,18 @@ pub fn handle_events(
                 // }
 
                 // Handle normal messages
-                let message = format!("{}: {}", &app.user.username, app.input);
-                app.messages.push(message.clone());
+                let local_message = format!("{}: {}", &app.user.username, app.input);
+                app.messages.push(local_message);
 
-                let request = Request::Shout(Shout {
-                    user: app.user.clone(),
-                    message: app.input.clone(),
-                });
-                handle.call(request).expect("call shout error");
+                // send shout request
+                let message = app.input.clone();
+                let request = app.shout_request(message);
+                handle.call(request).expect("shout request error");
 
+                // clear input
                 app.input.clear();
             } else if key.code == KeyCode::Backspace {
-                // if user has not joined yet, and input is the guest username, clear the input on backspace
+                // if user has not joined yet, and input is the guest username, clear entire input on backspace
                 if !app.has_joined() && app.input.clone() == app.user.username.clone() {
                     app.input.clear();
                 } else {

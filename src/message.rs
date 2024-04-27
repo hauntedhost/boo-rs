@@ -5,8 +5,8 @@ use serde_json::{Result as SerdeResult, Value as SerdeValue};
 
 #[derive(Default, Debug)]
 pub struct Message {
-    pub join_ref: Option<u32>,
-    pub message_ref: Option<u32>,
+    pub join_ref: Option<usize>,
+    pub message_ref: Option<usize>,
     pub topic: String,
     pub event: String,
     pub payload: SerdeValue,
@@ -43,9 +43,9 @@ impl Message {
 
 // The server sends and receives messages as a 5-element JSON array:
 type MessageArray = (
-    Option<u32>, // join_ref
-    Option<u32>, // message_ref
-    String,      // topic
-    String,      // event
-    SerdeValue,  // payload
+    Option<usize>, // join_ref
+    Option<usize>, // message_ref
+    String,        // topic
+    String,        // event
+    SerdeValue,    // payload
 );

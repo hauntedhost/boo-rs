@@ -1,5 +1,8 @@
 // This module contains the AppState struct used to store the state of the application.
+use crate::request::Request;
 use crate::user::User;
+
+const DEFAULT_ROOM: &str = "lobby";
 
 #[derive(Debug, Default)]
 pub enum Sidebar {
@@ -15,6 +18,7 @@ pub struct AppState {
     pub input: String,
     pub messages: Vec<String>,
     pub sidebar: Sidebar,
+    pub room: String,
     logs: Vec<String>,
     logs_enabled: bool,
     has_joined: bool,
@@ -27,6 +31,7 @@ impl Default for AppState {
             users: Vec::new(),
             input: String::new(),
             messages: Vec::new(),
+            room: DEFAULT_ROOM.to_string(),
             logs: Vec::new(),
             sidebar: Sidebar::default(),
             logs_enabled: true,
@@ -47,17 +52,6 @@ impl AppState {
         }
     }
 
-    pub fn get_usernames(&self) -> Vec<String> {
-        self.users.iter().map(|u| u.username.clone()).collect()
-    }
-
-    pub fn toggle_sidebar(&mut self) {
-        self.sidebar = match self.sidebar {
-            Sidebar::Users => Sidebar::Logs,
-            Sidebar::Logs => Sidebar::Users,
-        };
-    }
-
     pub fn has_joined(&self) -> bool {
         self.has_joined
     }
@@ -74,5 +68,27 @@ impl AppState {
         if self.logs_enabled {
             self.logs.push(log);
         }
+    }
+
+    pub fn toggle_sidebar(&mut self) {
+        self.sidebar = match self.sidebar {
+            Sidebar::Users => Sidebar::Logs,
+            Sidebar::Logs => Sidebar::Users,
+        };
+    }
+
+    // Return a vector of username strings
+    pub fn get_usernames(&self) -> Vec<String> {
+        self.users.iter().map(|u| u.username.clone()).collect()
+    }
+
+    // Build a join request
+    pub fn join_request(&mut self) -> Request {
+        Request::join(self.room.clone(), self.user.clone())
+    }
+
+    // Build a shout request
+    pub fn shout_request(&mut self, message: String) -> Request {
+        Request::shout(self.room.clone(), message, self.user.clone())
     }
 }

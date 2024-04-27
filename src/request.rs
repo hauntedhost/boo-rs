@@ -1,62 +1,67 @@
-use serde::Serialize;
+// This module contains the Request struct used to create requests to be sent to the server.
 use serde_json::{json, Value as SerdeValue};
 
+use crate::client::Refs;
 use crate::message::Message;
 use crate::user::User;
 
-const DEFAULT_ROOM: &str = "lobby";
-
 #[derive(Debug)]
-pub enum Request {
-    Shout(Shout),
-    Join(Join),
+enum Event {
+    Join,
+    Shout(String),
+}
+
+pub struct Request {
+    pub user: User,
+    pub room: String,
+    event: Event,
 }
 
 impl Request {
+    pub fn join(room: String, user: User) -> Self {
+        Self {
+            event: Event::Join,
+            room,
+            user,
+        }
+    }
+
+    pub fn shout(message: String, room: String, user: User) -> Self {
+        Self {
+            event: Event::Shout(message),
+            room,
+            user,
+        }
+    }
+
+    pub fn to_payload(&self, refs: Refs) -> String {
+        let event = self.event();
+        let payload = self.payload();
+
+        let message = Message {
+            join_ref: Some(refs.get_join_ref()),
+            message_ref: Some(refs.get_message_ref()),
+            topic: format!("relay:{}", self.room),
+            event,
+            payload,
+        };
+
+        message
+            .serialize_request()
+            .expect("Problem serializing message")
+    }
+
     fn event(&self) -> String {
-        match self {
-            Request::Shout(_) => "shout".to_string(),
-            Request::Join(_) => "phx_join".to_string(),
+        match self.event {
+            Event::Shout(_) => "shout".to_string(),
+            Event::Join => "phx_join".to_string(),
         }
     }
 
     fn payload(&self) -> SerdeValue {
-        match self {
-            Request::Shout(shout) => json!({ "user": shout.user, "message": shout.message }),
-            Request::Join(join) => json!({ "user": join.user  }),
+        match &self.event {
+            Event::Shout(message) => json!({ "user": self.user, "message": message }),
+            Event::Join => json!({ "user": self.user  }),
         }
     }
-}
-
-#[derive(Default, Serialize, Debug)]
-pub struct Shout {
-    pub user: User,
-    pub message: String,
-}
-
-#[derive(Default, Serialize, Debug)]
-pub struct Join {
-    pub user: User,
-}
-
-pub struct Refs {
-    pub join_ref: u32,
-    pub message_ref: u32,
-}
-
-pub fn build_request(request: Request, refs: Refs) -> String {
-    let event = request.event();
-    let payload = request.payload();
-
-    let message = Message {
-        join_ref: Some(refs.join_ref),
-        message_ref: Some(refs.message_ref),
-        topic: format!("relay:{DEFAULT_ROOM}"),
-        event,
-        payload,
-    };
-
-    message
-        .serialize_request()
-        .expect("Problem serializing message")
 }

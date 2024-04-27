@@ -4,13 +4,36 @@ use async_trait::async_trait;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use tokio::sync::mpsc;
 
-use crate::request::{build_request, Refs, Request};
+use crate::request::Request;
+
+pub struct Refs {
+    join_ref: AtomicUsize,
+    message_ref: AtomicUsize,
+}
+
+impl Default for Refs {
+    fn default() -> Self {
+        Self {
+            join_ref: AtomicUsize::new(1),
+            message_ref: AtomicUsize::new(1),
+        }
+    }
+}
+
+impl Refs {
+    pub fn get_join_ref(&self) -> usize {
+        self.join_ref.load(Ordering::SeqCst)
+    }
+
+    pub fn get_message_ref(&self) -> usize {
+        self.message_ref.load(Ordering::SeqCst)
+    }
+}
 
 pub struct Client {
     pub handle: ezsockets::Client<Self>,
     pub tx: mpsc::Sender<String>,
-    join_ref_counter: AtomicUsize,
-    ref_counter: AtomicUsize,
+    refs: Refs,
 }
 
 impl Client {
@@ -18,17 +41,18 @@ impl Client {
         Self {
             handle,
             tx,
-            join_ref_counter: AtomicUsize::new(1),
-            ref_counter: AtomicUsize::new(1),
+            refs: Refs::default(),
         }
     }
 
-    fn generate_join_ref(&self) -> usize {
-        self.join_ref_counter.fetch_add(1, Ordering::SeqCst)
-    }
+    pub fn next_refs(&self) -> Refs {
+        let new_join_ref = self.refs.join_ref.fetch_add(1, Ordering::SeqCst);
+        let new_message_ref = self.refs.message_ref.fetch_add(1, Ordering::SeqCst);
 
-    fn generate_ref(&self) -> usize {
-        self.ref_counter.fetch_add(1, Ordering::SeqCst)
+        Refs {
+            join_ref: AtomicUsize::new(new_join_ref + 1),
+            message_ref: AtomicUsize::new(new_message_ref + 1),
+        }
     }
 }
 
@@ -52,14 +76,7 @@ impl ezsockets::ClientExt for Client {
     }
 
     async fn on_call(&mut self, request: Request) -> Result<(), ezsockets::Error> {
-        let request_payload = build_request(
-            request,
-            Refs {
-                join_ref: self.generate_join_ref() as u32,
-                message_ref: self.generate_ref() as u32,
-            },
-        );
-
+        let request_payload = request.to_payload(self.next_refs());
         self.handle
             .text(request_payload)
             .expect("error sending request");
