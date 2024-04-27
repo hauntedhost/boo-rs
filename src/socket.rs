@@ -1,4 +1,5 @@
 use ezsockets::ClientConfig;
+use log::info;
 use std::env;
 use std::future::Future;
 use tokio::sync::mpsc;
@@ -22,7 +23,7 @@ pub async fn connect_socket(
     let socket_url = get_socket_url();
     let config = ClientConfig::new(socket_url.clone());
 
-    log::info!("connecting to websocket {} ...", socket_url);
+    info!("connecting to websocket {} ...", socket_url);
 
     ezsockets::connect(|handle| Client::new(handle, tx), config).await
 }

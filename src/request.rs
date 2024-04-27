@@ -26,7 +26,7 @@ impl Request {
         }
     }
 
-    pub fn shout(message: String, room: String, user: User) -> Self {
+    pub fn shout(room: String, message: String, user: User) -> Self {
         Self {
             event: Event::Shout(message),
             room,

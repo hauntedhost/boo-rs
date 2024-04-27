@@ -8,7 +8,7 @@ use crate::names::generate_username;
 pub struct User {
     pub uuid: String,
     pub username: String,
-    pub online_at: String,
+    pub online_at: u64,
 }
 
 impl User {

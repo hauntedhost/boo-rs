@@ -1,6 +1,7 @@
 /// This module contains the `Client` struct and ezsockets client implementation.
 /// It handles internal calls and relays messages to the server.
 use async_trait::async_trait;
+use log::{error, info};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use tokio::sync::mpsc;
 
@@ -61,22 +62,25 @@ impl ezsockets::ClientExt for Client {
     type Call = Request;
 
     async fn on_text(&mut self, text: String) -> Result<(), ezsockets::Error> {
-        log::info!("received message: {text}");
+        info!("received message: {text}");
 
         if let Err(e) = self.tx.send(text).await {
-            log::error!("Error sending message to terminal: {e}");
+            error!("Error sending message to terminal: {e}");
         }
 
         Ok(())
     }
 
     async fn on_binary(&mut self, bytes: Vec<u8>) -> Result<(), ezsockets::Error> {
-        log::info!("received bytes: {bytes:?}");
+        info!("received bytes: {bytes:?}");
         Ok(())
     }
 
     async fn on_call(&mut self, request: Request) -> Result<(), ezsockets::Error> {
         let request_payload = request.to_payload(self.next_refs());
+
+        info!("sending message: {request_payload}");
+
         self.handle
             .text(request_payload)
             .expect("error sending request");

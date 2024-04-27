@@ -11,9 +11,15 @@ use crate::user::User;
 pub enum Response {
     #[default]
     Null,
+    JoinReply(JoinReply),
     Shout(Shout),
     PresenceDiff(PresenceDiff),
     PresenceState(PresenceState),
+}
+
+#[derive(Default, Serialize, Deserialize, Debug)]
+pub struct JoinReply {
+    pub user: User,
 }
 
 #[derive(Default, Serialize, Deserialize, Debug)]
@@ -34,6 +40,18 @@ pub struct PresenceState {
 }
 
 #[derive(Default, Serialize, Deserialize, Debug)]
+struct RawReply {
+    status: String,
+    response: RawReplyResponse,
+}
+
+#[derive(Default, Serialize, Deserialize, Debug)]
+struct RawReplyResponse {
+    event: String,
+    user: User,
+}
+
+#[derive(Default, Serialize, Deserialize, Debug)]
 struct RawPresenceDiff {
     joins: HashMap<String, UserPresence>,
     leaves: HashMap<String, UserPresence>,
@@ -50,7 +68,7 @@ struct UserPresence {
 struct UserMeta {
     uuid: String,
     username: String,
-    online_at: String,
+    online_at: u64,
 }
 
 pub fn parse_response(json_data: &str) -> Response {
@@ -59,6 +77,17 @@ pub fn parse_response(json_data: &str) -> Response {
     };
 
     match message.event.as_str() {
+        "phx_reply" => {
+            // currently only handling phx_join reply
+            if let Ok(reply) = serde_json::from_value::<RawReply>(message.payload) {
+                if reply.response.event == "phx_join" {
+                    return Response::JoinReply(JoinReply {
+                        user: reply.response.user,
+                    });
+                }
+            }
+            return Response::Null;
+        }
         "shout" => {
             let shout = serde_json::from_value::<Shout>(message.payload).unwrap();
             return Response::Shout(shout);
@@ -87,7 +116,7 @@ fn extract_first_users(joins: HashMap<String, UserPresence>) -> Vec<User> {
             users.push(User {
                 uuid: user_id,
                 username: first_user.username.clone(),
-                online_at: first_user.online_at.clone(),
+                online_at: first_user.online_at,
             });
         }
     }

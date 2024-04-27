@@ -14,6 +14,7 @@ use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
 use crossterm::ExecutableCommand;
+use log::info;
 use ratatui::prelude::*;
 use std::io::{self, stdout};
 
@@ -29,7 +30,7 @@ async fn main() -> io::Result<()> {
 
     // init logging
     setup_logging(app.user.display_name().clone()).expect("failed to initialize logging");
-    log::info!("app started");
+    info!("app started");
 
     // connect websocket
     let (tx, mut rx) = create_channel();
