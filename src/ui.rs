@@ -1,64 +1,71 @@
 /// This module contains all code for rendering the UI within the main app loop.
 use ratatui::{prelude::*, widgets::*};
 
-use crate::app::AppState;
+use crate::app::{AppState, Sidebar};
 
 #[allow(unused_variables)]
-pub fn render(
-    frame: &mut Frame,
-    AppState {
+pub fn render(frame: &mut Frame, app: &AppState) {
+    let AppState {
         user,
         input,
         messages,
-        logs,
         users,
-        has_joined,
-    }: &AppState,
-) {
+        ..
+    } = app;
+
     let outer_layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints(vec![Constraint::Min(1), Constraint::Length(3)])
         .split(frame.size());
 
+    let (message_width, sidebar_width) = match app.sidebar {
+        Sidebar::Users => (80, 20),
+        Sidebar::Logs => (60, 40),
+    };
+
     let inner_layout = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints(vec![Constraint::Percentage(80), Constraint::Percentage(20)])
+        .constraints(vec![
+            Constraint::Percentage(message_width),
+            Constraint::Percentage(sidebar_width),
+        ])
         .split(outer_layout[0]);
+
+    // dim style for widgets if user has not joined yet
+    let widget_style = if app.has_joined() {
+        Style::default()
+    } else {
+        Style::new().dim()
+    };
 
     // messages area
     let messages_area = inner_layout[0];
-    let messages_widget = build_messages_widget(messages_area, messages);
+    let messages_widget = build_messages_widget(messages_area, messages).style(widget_style);
     frame.render_widget(messages_widget, messages_area);
 
     // sidebar area
     let sidebar_area = inner_layout[1];
-
-    // sidebar: users
-    let usernames: Vec<String> = users.iter().map(|u| u.username.clone()).collect();
-    let users_widget = build_users_widget(sidebar_area, &usernames);
-    frame.render_widget(users_widget, sidebar_area);
-
-    // sidebar: logs
-    // let logs_widget = build_logs_widget(sidebar_area, logs);
-    // frame.render_widget(logs_widget, sidebar_area);
+    match app.sidebar {
+        Sidebar::Users => {
+            let usernames = app.get_usernames();
+            let users_widget = build_users_widget(sidebar_area, &usernames).style(widget_style);
+            frame.render_widget(users_widget, sidebar_area);
+        }
+        Sidebar::Logs => {
+            let logs = app.get_logs();
+            let logs_widget = build_logs_widget(sidebar_area, &logs).style(widget_style);
+            frame.render_widget(logs_widget, sidebar_area);
+        }
+    };
 
     // input area
     let input_area = outer_layout[1];
-
-    let input_text = if !*has_joined {
-        format!("choose a username > {}", input)
-    } else {
-        input.clone()
-    };
-
-    let input_block =
-        Paragraph::new(input_text.clone()).block(Block::default().borders(Borders::ALL));
-
-    frame.render_widget(input_block, input_area);
+    let (input_widget, input_width) = build_input_widget(&app);
+    frame.render_widget(input_widget, input_area);
 
     // cursor
     let size = frame.size();
-    let x = (input_text.len() + 1) as u16;
+    let x = input_width + 1;
     let y = size.bottom() - 2;
     frame.set_cursor(x, y);
 }
@@ -91,6 +98,34 @@ fn build_logs_widget(area: Rect, logs: &Vec<String>) -> List {
         .direction(ListDirection::TopToBottom)
         .block(Block::default().borders(Borders::ALL).title("Logs"));
     log_list
+}
+
+fn build_input_widget(app: &AppState) -> (Paragraph, u16) {
+    let input_width: u16;
+
+    // if user has not joined, show a prompt to choose a username
+    let input_paragraph = if !app.has_joined() {
+        // dim the input if input is still the default username
+        let style = if app.input.clone() == app.user.username.clone() {
+            Style::new().italic().dim()
+        } else {
+            Style::default()
+        };
+
+        let line = Line::from(vec![
+            Span::raw("Choose a username > "),
+            Span::styled(app.input.clone(), style),
+        ]);
+        input_width = line.width() as u16;
+        Paragraph::new(line)
+    } else {
+        input_width = app.input.len() as u16;
+        Paragraph::new(app.input.clone())
+    };
+
+    let input_block = input_paragraph.block(Block::default().borders(Borders::ALL));
+
+    (input_block, input_width)
 }
 
 fn build_list_items<F>(
@@ -142,13 +177,14 @@ fn default_formatter(string: &String) -> String {
 fn json_formatter(string: &String) -> String {
     let json: serde_json::Value = serde_json::from_str(string).unwrap();
 
-    if let serde_json::Value::Array(elements) = json.clone() {
-        if let Some(event) = elements.get(3).and_then(|e| e.as_str()) {
-            if event != "presence_state" {
-                return "".to_string();
-            }
-        }
-    }
+    // example: filter presence_state events
+    // if let serde_json::Value::Array(elements) = json.clone() {
+    //     if let Some(event) = elements.get(3).and_then(|e| e.as_str()) {
+    //         if event != "presence_state" {
+    //             return "".to_string();
+    //         }
+    //     }
+    // }
 
     let pretty_json = serde_json::to_string_pretty(&json).unwrap();
     let formatted_log = format!("=> {}", pretty_json.trim());

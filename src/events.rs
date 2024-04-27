@@ -13,28 +13,20 @@ use crate::response::{parse_response, Response};
 pub fn handle_events(
     handle: &ezsockets::Client<client::Client>,
     rx: &mut Receiver<String>,
-    // app: &mut AppState,
-    AppState {
-        user,
-        users,
-        input,
-        messages,
-        logs,
-        has_joined,
-    }: &mut AppState,
+    app: &mut AppState,
 ) -> std::io::Result<bool> {
     match rx.try_recv() {
         Ok(message_payload) => {
-            logs.push(message_payload.clone());
+            app.append_log(message_payload.clone());
 
             match parse_response(&message_payload) {
                 Response::Null => (),
                 Response::Shout(shout) => {
                     log::info!("Shout={:?}", shout);
 
-                    if !shout.user.uuid.eq(&user.uuid) {
+                    if !shout.user.uuid.eq(&app.user.uuid) {
                         let message = format!("{}: {}", shout.user.username, shout.message);
-                        messages.push(message);
+                        app.messages.push(message);
                     }
                 }
                 Response::PresenceDiff(diff) => {
@@ -42,17 +34,17 @@ pub fn handle_events(
 
                     for user in diff.joins {
                         let message = format!("{} has joined the chat!", user.username);
-                        messages.push(message);
+                        app.messages.push(message);
                     }
 
                     for user in diff.leaves {
                         let message = format!("{} has left the chat!", user.username);
-                        messages.push(message);
+                        app.messages.push(message);
                     }
                 }
                 Response::PresenceState(state) => {
                     log::info!("PresenceState={:?}", state);
-                    *users = state.users;
+                    app.users = state.users;
                 }
             }
         }
@@ -72,21 +64,28 @@ pub fn handle_events(
                 return Ok(true);
             }
 
+            if key.modifiers.contains(KeyModifiers::ALT) && key.code == KeyCode::Char('s') {
+                app.toggle_sidebar();
+                return Ok(false);
+            }
+
             if key.code == KeyCode::Enter {
                 // Ignore empty messages
-                if input.len() == 0 {
+                if app.input.len() == 0 {
                     return Ok(false);
                 }
 
                 // Special case for handling the first message as a join request
-                if *has_joined == false {
-                    user.username = input.clone();
+                if !app.has_joined() {
+                    app.user.username = app.input.clone();
 
-                    let request = Request::Join(Join { user: user.clone() });
+                    let request = Request::Join(Join {
+                        user: app.user.clone(),
+                    });
                     handle.call(request).expect("join error");
 
-                    input.clear();
-                    *has_joined = true;
+                    app.input.clear();
+                    app.set_has_joined();
 
                     return Ok(false);
                 }
@@ -106,20 +105,25 @@ pub fn handle_events(
                 // }
 
                 // Handle normal messages
-                let message = format!("{}: {}", &user.username, input);
-                messages.push(message.clone());
+                let message = format!("{}: {}", &app.user.username, app.input);
+                app.messages.push(message.clone());
 
                 let request = Request::Shout(Shout {
-                    user: user.clone(),
-                    message: input.clone(),
+                    user: app.user.clone(),
+                    message: app.input.clone(),
                 });
                 handle.call(request).expect("call shout error");
 
-                input.clear();
+                app.input.clear();
             } else if key.code == KeyCode::Backspace {
-                input.pop();
+                // if user has not joined yet, and input is the guest username, clear the input on backspace
+                if !app.has_joined() && app.input.clone() == app.user.username.clone() {
+                    app.input.clear();
+                } else {
+                    app.input.pop();
+                }
             } else if let KeyCode::Char(c) = key.code {
-                input.push(c);
+                app.input.push(c);
             }
         }
     }
