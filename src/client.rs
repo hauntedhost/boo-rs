@@ -62,8 +62,6 @@ impl ezsockets::ClientExt for Client {
     type Call = Request;
 
     async fn on_text(&mut self, text: String) -> Result<(), ezsockets::Error> {
-        info!("received message: {text}");
-
         if let Err(e) = self.tx.send(text).await {
             error!("Error sending message to terminal: {e}");
         }
@@ -78,8 +76,6 @@ impl ezsockets::ClientExt for Client {
 
     async fn on_call(&mut self, request: Request) -> Result<(), ezsockets::Error> {
         let request_payload = request.to_payload(self.next_refs());
-
-        info!("sending message: {request_payload}");
 
         self.handle
             .text(request_payload)

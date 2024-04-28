@@ -12,6 +12,7 @@ pub enum Response {
     #[default]
     Null,
     JoinReply(JoinReply),
+    RoomsUpdate(RoomsUpdate),
     Shout(Shout),
     PresenceDiff(PresenceDiff),
     PresenceState(PresenceState),
@@ -20,6 +21,11 @@ pub enum Response {
 #[derive(Default, Serialize, Deserialize, Debug)]
 pub struct JoinReply {
     pub user: User,
+}
+
+#[derive(Default, Serialize, Deserialize, Debug)]
+pub struct RoomsUpdate {
+    pub rooms: Vec<String>,
 }
 
 #[derive(Default, Serialize, Deserialize, Debug)]
@@ -61,14 +67,7 @@ type RawPresenceState = HashMap<String, UserPresence>;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct UserPresence {
-    metas: Vec<UserMeta>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct UserMeta {
-    uuid: String,
-    username: String,
-    online_at: u64,
+    metas: Vec<User>,
 }
 
 pub fn parse_response(json_data: &str) -> Response {
@@ -78,7 +77,7 @@ pub fn parse_response(json_data: &str) -> Response {
 
     match message.event.as_str() {
         "phx_reply" => {
-            // currently only handling phx_join reply
+            // currently only handling phx_join response.event
             if let Ok(reply) = serde_json::from_value::<RawReply>(message.payload) {
                 if reply.response.event == "phx_join" {
                     return Response::JoinReply(JoinReply {
@@ -92,12 +91,17 @@ pub fn parse_response(json_data: &str) -> Response {
             let shout = serde_json::from_value::<Shout>(message.payload).unwrap();
             return Response::Shout(shout);
         }
+        "rooms_update" => {
+            let rooms = serde_json::from_value::<RoomsUpdate>(message.payload).unwrap();
+            return Response::RoomsUpdate(rooms);
+        }
         "presence_diff" => {
             let raw_diff = serde_json::from_value::<RawPresenceDiff>(message.payload).unwrap();
             let joins = extract_first_users(raw_diff.joins);
             let leaves = extract_first_users(raw_diff.leaves);
             return Response::PresenceDiff(PresenceDiff { joins, leaves });
         }
+        // NOTE: currently unused
         "presence_state" => {
             let raw_state = serde_json::from_value::<RawPresenceState>(message.payload).unwrap();
             let users = extract_first_users(raw_state);
@@ -111,13 +115,9 @@ pub fn parse_response(json_data: &str) -> Response {
 
 fn extract_first_users(joins: HashMap<String, UserPresence>) -> Vec<User> {
     let mut users = Vec::new();
-    for (user_id, user_presence) in joins {
+    for (_key, user_presence) in joins {
         if let Some(first_user) = user_presence.metas.get(0) {
-            users.push(User {
-                uuid: user_id,
-                username: first_user.username.clone(),
-                online_at: first_user.online_at,
-            });
+            users.push(first_user.clone());
         }
     }
 

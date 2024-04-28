@@ -24,10 +24,11 @@ pub enum Onboarding {
 pub struct AppState {
     pub user: User,
     pub users: Vec<User>,
-    pub input: String,
-    pub messages: Vec<String>,
-    pub sidebar: Sidebar,
     pub room: String,
+    pub rooms: Vec<String>,
+    pub messages: Vec<String>,
+    pub input: String,
+    pub sidebar: Sidebar,
     pub onboarding: Onboarding,
     logs: Vec<String>,
     logs_enabled: bool,
@@ -43,13 +44,14 @@ impl Default for AppState {
         AppState {
             user: User::new_from_env_or_generate(),
             users: Vec::new(),
-            input: initial_input,
-            messages: Vec::new(),
             room: room.clone(),
-            logs: Vec::new(),
+            rooms: Vec::new(),
+            messages: Vec::new(),
+            input: initial_input,
             sidebar: Sidebar::default(),
-            logs_enabled: true,
             onboarding: Onboarding::default(),
+            logs: Vec::new(),
+            logs_enabled: true,
         }
     }
 }
@@ -73,6 +75,10 @@ impl AppState {
             }
             Onboarding::Completed => (),
         };
+    }
+
+    pub fn get_rooms(&self) -> Vec<String> {
+        self.rooms.clone()
     }
 
     pub fn get_logs(&self) -> Vec<String> {

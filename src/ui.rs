@@ -18,15 +18,16 @@ pub fn render(frame: &mut Frame, app: &AppState) {
         .constraints(vec![Constraint::Min(1), Constraint::Length(3)])
         .split(frame.size());
 
-    let (message_width, sidebar_width) = match app.sidebar {
-        Sidebar::Users => (80, 20),
-        Sidebar::Logs => (60, 40),
+    let (rooms_width, messages_width, sidebar_width) = match app.sidebar {
+        Sidebar::Users => (25, 55, 20),
+        Sidebar::Logs => (25, 40, 35),
     };
 
     let inner_layout = Layout::default()
         .direction(Direction::Horizontal)
         .constraints(vec![
-            Constraint::Percentage(message_width),
+            Constraint::Percentage(rooms_width),
+            Constraint::Percentage(messages_width),
             Constraint::Percentage(sidebar_width),
         ])
         .split(outer_layout[0]);
@@ -38,14 +39,20 @@ pub fn render(frame: &mut Frame, app: &AppState) {
         Style::new().dim()
     };
 
+    // rooms area
+    let rooms_area = inner_layout[0];
+    let rooms = app.get_rooms();
+    let rooms_widget = build_rooms_widget(rooms_area, &rooms).style(widget_style);
+    frame.render_widget(rooms_widget, rooms_area);
+
     // messages area
-    let messages_area = inner_layout[0];
+    let messages_area = inner_layout[1];
     let messages_widget =
         build_messages_widget(messages_area, app.room.clone(), messages).style(widget_style);
     frame.render_widget(messages_widget, messages_area);
 
     // sidebar area
-    let sidebar_area = inner_layout[1];
+    let sidebar_area = inner_layout[2];
     match app.sidebar {
         Sidebar::Users => {
             let usernames = app.get_usernames();
@@ -69,6 +76,15 @@ pub fn render(frame: &mut Frame, app: &AppState) {
     let x = input_width + 1;
     let y = size.bottom() - 2;
     frame.set_cursor(x, y);
+}
+
+fn build_rooms_widget(area: Rect, rooms: &Vec<String>) -> List {
+    let title = format!(" Rooms ");
+    let items = build_list_items(area, rooms, 2, default_formatter);
+    let list = List::new(items)
+        .direction(ListDirection::TopToBottom)
+        .block(Block::default().borders(Borders::ALL).title(title));
+    list
 }
 
 fn build_messages_widget(area: Rect, room: String, messages: &Vec<String>) -> List {

@@ -3,7 +3,6 @@
 ///   - incoming messages from the server
 ///   - keyboard input from the user
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
-use log::info;
 use tokio::sync::mpsc::Receiver;
 
 use crate::app::{AppState, Onboarding};
@@ -23,20 +22,18 @@ pub fn handle_events(
             match parse_response(&message_payload) {
                 Response::Null => (),
                 Response::JoinReply(reply) => {
-                    info!("JoinReply={:?}", reply);
                     app.user.online_at = reply.user.online_at;
                 }
                 Response::Shout(shout) => {
-                    info!("Shout={:?}", shout);
-
                     if !shout.user.uuid.eq(&app.user.uuid) {
                         let message = format!("{}: {}", shout.user.username, shout.message);
                         app.messages.push(message);
                     }
                 }
+                Response::RoomsUpdate(rooms) => {
+                    app.rooms = rooms.rooms;
+                }
                 Response::PresenceDiff(diff) => {
-                    info!("PresenceDiff={:?}", diff);
-
                     for user in diff.joins {
                         let message = format!("{} has joined the chat!", user.username);
                         app.messages.push(message);
@@ -48,7 +45,6 @@ pub fn handle_events(
                     }
                 }
                 Response::PresenceState(state) => {
-                    info!("PresenceState={:?}", state);
                     app.users = state.users;
                 }
             }
