@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::message::Message;
+use crate::room::Room;
 use crate::user::User;
 
 // The response enum we will build based on the event type
@@ -23,10 +24,7 @@ pub struct JoinReply {
     pub user: User,
 }
 
-#[derive(Default, Serialize, Deserialize, Debug)]
-pub struct RoomsUpdate {
-    pub rooms: Vec<String>,
-}
+pub type RoomsUpdate = Vec<Room>;
 
 #[derive(Default, Serialize, Deserialize, Debug)]
 pub struct Shout {
@@ -56,6 +54,16 @@ struct RawReplyResponse {
     event: String,
     user: User,
 }
+
+#[derive(Default, Serialize, Deserialize, Debug)]
+struct RawRoomsUpdate {
+    rooms: Vec<RoomUpdateArray>,
+}
+
+type RoomUpdateArray = (
+    String, // name
+    u32,    // user count
+);
 
 #[derive(Default, Serialize, Deserialize, Debug)]
 struct RawPresenceDiff {
@@ -92,7 +100,15 @@ pub fn parse_response(json_data: &str) -> Response {
             return Response::Shout(shout);
         }
         "rooms_update" => {
-            let rooms = serde_json::from_value::<RoomsUpdate>(message.payload).unwrap();
+            let rooms_update = serde_json::from_value::<RawRoomsUpdate>(message.payload).unwrap();
+            let rooms: Vec<Room> = rooms_update
+                .rooms
+                .iter()
+                .map(|room_update| Room {
+                    name: room_update.0.clone(),
+                    user_count: room_update.1,
+                })
+                .collect();
             return Response::RoomsUpdate(rooms);
         }
         "presence_diff" => {
@@ -101,7 +117,6 @@ pub fn parse_response(json_data: &str) -> Response {
             let leaves = extract_first_users(raw_diff.leaves);
             return Response::PresenceDiff(PresenceDiff { joins, leaves });
         }
-        // NOTE: currently unused
         "presence_state" => {
             let raw_state = serde_json::from_value::<RawPresenceState>(message.payload).unwrap();
             let users = extract_first_users(raw_state);
@@ -113,6 +128,7 @@ pub fn parse_response(json_data: &str) -> Response {
     }
 }
 
+// A user can be "present" from multiple devices, we only care about the first one right now
 fn extract_first_users(joins: HashMap<String, UserPresence>) -> Vec<User> {
     let mut users = Vec::new();
     for (_key, user_presence) in joins {
@@ -120,6 +136,5 @@ fn extract_first_users(joins: HashMap<String, UserPresence>) -> Vec<User> {
             users.push(first_user.clone());
         }
     }
-
     users
 }

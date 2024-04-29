@@ -6,6 +6,7 @@ mod message;
 mod names;
 mod request;
 mod response;
+mod room;
 mod socket;
 mod ui;
 mod user;

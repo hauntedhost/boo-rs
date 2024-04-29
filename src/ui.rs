@@ -40,8 +40,9 @@ pub fn render(frame: &mut Frame, app: &AppState) {
     };
 
     // rooms area
+    // TODO: bold the current room, italicize the user counts
     let rooms_area = inner_layout[0];
-    let rooms = app.get_rooms();
+    let rooms = app.get_rooms_with_counts();
     let rooms_widget = build_rooms_widget(rooms_area, &rooms).style(widget_style);
     frame.render_widget(rooms_widget, rooms_area);
 
@@ -192,11 +193,13 @@ where
                 // Only take as many lines as we can fit
                 let mut sliced_lines = lines.into_iter().rev().take(lines_fit).collect::<Vec<_>>();
                 sliced_lines.reverse();
-                items.push(ListItem::from(Text::from(sliced_lines)));
+                let list_item = ListItem::from(Text::from(sliced_lines));
+                items.push(list_item);
             }
             break;
         } else {
-            items.push(ListItem::from(Text::from(lines.clone())));
+            let list_item = ListItem::from(Text::from(lines.clone()));
+            items.push(list_item);
             line_count += lines.len();
         }
     }

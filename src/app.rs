@@ -3,6 +3,7 @@ use std::env;
 /// This module contains the AppState struct used to store the state of the application.
 use crate::names::generate_room_name;
 use crate::request::Request;
+use crate::room::Room;
 use crate::user::User;
 
 #[derive(Debug, Default)]
@@ -23,9 +24,11 @@ pub enum Onboarding {
 #[derive(Debug)]
 pub struct AppState {
     pub user: User,
+    // TODO: store users as a HashMap<String, User> to allow for quick adds and removes
     pub users: Vec<User>,
     pub room: String,
-    pub rooms: Vec<String>,
+    // TODO: store rooms as a HashMap<String, User> to allow for quick adds and removes
+    pub rooms: Vec<Room>,
     pub messages: Vec<String>,
     pub input: String,
     pub sidebar: Sidebar,
@@ -77,8 +80,24 @@ impl AppState {
         };
     }
 
-    pub fn get_rooms(&self) -> Vec<String> {
-        self.rooms.clone()
+    pub fn get_rooms_with_counts(&self) -> Vec<String> {
+        let rooms_with_counts = self
+            .rooms
+            .iter()
+            .map(|room| format!("{} ({})", room.name, room.user_count).clone())
+            .collect::<Vec<String>>();
+
+        rooms_with_counts
+    }
+
+    pub fn add_user(&mut self, user: User) {
+        if !self.users.iter().any(|u| u.uuid == user.uuid) {
+            self.users.push(user);
+        }
+    }
+
+    pub fn remove_user(&mut self, user: User) {
+        self.users.retain(|u| u.uuid != user.uuid);
     }
 
     pub fn get_logs(&self) -> Vec<String> {

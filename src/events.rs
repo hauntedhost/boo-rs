@@ -31,16 +31,18 @@ pub fn handle_events(
                     }
                 }
                 Response::RoomsUpdate(rooms) => {
-                    app.rooms = rooms.rooms;
+                    app.rooms = rooms;
                 }
                 Response::PresenceDiff(diff) => {
                     for user in diff.joins {
                         let message = format!("{} has joined the chat!", user.username);
+                        app.add_user(user);
                         app.messages.push(message);
                     }
 
                     for user in diff.leaves {
                         let message = format!("{} has left the chat!", user.username);
+                        app.remove_user(user);
                         app.messages.push(message);
                     }
                 }
