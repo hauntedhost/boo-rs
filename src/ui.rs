@@ -1,3 +1,4 @@
+use log::info;
 /// This module contains all code for rendering the UI within the main app loop.
 use ratatui::{prelude::*, widgets::*};
 
@@ -85,6 +86,13 @@ fn build_rooms_widget(area: Rect, rooms: &Vec<(String, u32)>) -> List {
 
     let mut items: Vec<ListItem> = vec![];
     for (room, count) in rooms {
+        info!(
+            "width={}, room.len()={}, count.to_string().len()={}",
+            width,
+            room.len(),
+            count.to_string().len()
+        );
+
         let padding_len = width - (room.len() + count.to_string().len());
         let padding = " ".repeat(padding_len);
         let line = Line::from(Span::raw(format!("{room}{padding}{count}")));
