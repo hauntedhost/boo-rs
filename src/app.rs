@@ -80,12 +80,12 @@ impl AppState {
         };
     }
 
-    pub fn get_rooms_with_counts(&self) -> Vec<String> {
+    pub fn get_rooms_with_counts(&self) -> Vec<(String, u32)> {
         let rooms_with_counts = self
             .rooms
             .iter()
-            .map(|room| format!("{} ({})", room.name, room.user_count).clone())
-            .collect::<Vec<String>>();
+            .map(|room| (room.name.clone(), room.user_count))
+            .collect();
 
         rooms_with_counts
     }

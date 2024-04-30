@@ -1,15 +1,11 @@
 use rand::Rng;
 
 pub fn generate_room_name() -> String {
-    let mut rng = rand::thread_rng();
-    let random_num = rng.gen_range(10..99);
-
     format!(
-        "{}-{}-{}-{}",
+        "{}-{}-{}",
         random_adjective(),
         random_adjective(),
         random_noun(),
-        random_num
     )
 }
 
@@ -22,7 +18,7 @@ pub fn generate_username() -> String {
 
 fn random_adjective() -> String {
     get_random(vec![
-        "ancient", "barren", "chilly", "distant", "eerie", "frozen", "haunted", "hidden", "hollow",
+        "barren", "chilly", "cold", "distant", "eerie", "frozen", "haunted", "hidden", "hollow",
         "lonely", "misty", "moody", "mystic", "quiet", "secret", "silent", "shrouded", "stark",
         "subtle", "sullen", "veiled", "velvet", "windy",
     ])

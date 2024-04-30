@@ -19,7 +19,7 @@ pub fn render(frame: &mut Frame, app: &AppState) {
         .split(frame.size());
 
     let (rooms_width, messages_width, sidebar_width) = match app.sidebar {
-        Sidebar::Users => (25, 55, 20),
+        Sidebar::Users => (25, 50, 25),
         Sidebar::Logs => (25, 40, 35),
     };
 
@@ -79,9 +79,18 @@ pub fn render(frame: &mut Frame, app: &AppState) {
     frame.set_cursor(x, y);
 }
 
-fn build_rooms_widget(area: Rect, rooms: &Vec<String>) -> List {
+fn build_rooms_widget(area: Rect, rooms: &Vec<(String, u32)>) -> List {
     let title = format!(" Rooms ");
-    let items = build_list_items(area, rooms, 2, default_formatter);
+    let width = (area.width - 2) as usize;
+
+    let mut items: Vec<ListItem> = vec![];
+    for (room, count) in rooms {
+        let padding_len = width - (room.len() + count.to_string().len());
+        let padding = " ".repeat(padding_len);
+        let line = Line::from(Span::raw(format!("{room}{padding}{count}")));
+        let item = ListItem::from(Text::from(line));
+        items.push(item);
+    }
     let list = List::new(items)
         .direction(ListDirection::TopToBottom)
         .block(Block::default().borders(Borders::ALL).title(title));
