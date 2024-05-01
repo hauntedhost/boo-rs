@@ -5,13 +5,9 @@ use crate::app::{AppState, Onboarding, Sidebar};
 /// This module contains all code for rendering the UI within the main app loop.
 
 #[allow(unused_variables)]
-pub fn render(frame: &mut Frame, app: &AppState) {
+pub fn render(frame: &mut Frame, app: &mut AppState) {
     let AppState {
-        user,
-        input,
-        messages,
-        users,
-        ..
+        user, input, users, ..
     } = app;
     let (rooms_width, messages_width, sidebar_width) = match app.sidebar {
         Sidebar::Users => (25, 55, 20),
@@ -39,34 +35,34 @@ pub fn render(frame: &mut Frame, app: &AppState) {
     let (messages_area, input_area) = (inner_layout[0], inner_layout[1]);
 
     // dim style for widgets if user has not finished onboarding
-    let widget_style = if app.onboarding == Onboarding::Completed {
-        Style::default()
+    let onboarding_style = if app.onboarding == Onboarding::Completed {
+        Style::new().not_dim()
     } else {
         Style::new().dim()
     };
 
     // rooms area
-    // TODO: bold the current room row
     let rooms = app.get_rooms_with_counts();
-    let rooms_widget = build_rooms_widget(app.room.clone(), &rooms).style(widget_style);
-    frame.render_widget(rooms_widget, rooms_area);
+    let rooms_widget = build_rooms_widget(&rooms, onboarding_style);
+    app.room_table_state.select(app.get_room_index());
+    frame.render_stateful_widget(rooms_widget, rooms_area, &mut app.room_table_state);
 
     // messages area
+    let messages = app.get_messages();
     let messages_widget =
-        build_messages_widget(messages_area, app.room.clone(), messages).style(widget_style);
+        build_messages_widget(messages_area, app.room.clone(), &messages, onboarding_style);
     frame.render_widget(messages_widget, messages_area);
 
     // sidebar area
     match app.sidebar {
         Sidebar::Users => {
             let users = app.get_uuid_username_pairs();
-            let users_widget =
-                build_users_widget(app.user.uuid.clone(), &users).style(widget_style);
+            let users_widget = build_users_widget(app.user.uuid.clone(), &users, onboarding_style);
             frame.render_widget(users_widget, sidebar_area);
         }
         Sidebar::Logs => {
             let logs = app.get_logs();
-            let logs_widget = build_logs_widget(sidebar_area, &logs).style(widget_style);
+            let logs_widget = build_logs_widget(sidebar_area, &logs, onboarding_style);
             frame.render_widget(logs_widget, sidebar_area);
         }
     };
@@ -81,13 +77,10 @@ pub fn render(frame: &mut Frame, app: &AppState) {
     frame.set_cursor(x, y);
 }
 
-fn build_rooms_widget(app_room_name: String, rooms: &Vec<(String, u32)>) -> Table {
+fn build_rooms_widget(rooms: &Vec<(String, u32)>, onboarding_style: Style) -> Table {
     let mut rows: Vec<Row> = vec![];
     for (room_name, user_count) in rooms {
-        let mut room_name = format!("{room_name}");
-        if room_name == app_room_name {
-            room_name.insert_str(0, "* ");
-        }
+        let room_name = format!("{room_name}");
         let row = Row::new(vec![format!("{room_name}"), format!("{user_count}")]);
         rows.push(row);
     }
@@ -96,12 +89,26 @@ fn build_rooms_widget(app_room_name: String, rooms: &Vec<(String, u32)>) -> Tabl
     let table = Table::new(rows, widths)
         .column_spacing(1)
         .flex(layout::Flex::Legacy)
-        .block(Block::default().borders(Borders::ALL).title(" Rooms "));
+        .style(Style::new().dim())
+        .highlight_symbol("> ")
+        .highlight_style(Style::new().not_dim().light_green())
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::new().dim())
+                .title(" Rooms ")
+                .title_style(onboarding_style),
+        );
 
     table
 }
 
-fn build_messages_widget(area: Rect, room: String, messages: &Vec<String>) -> List {
+fn build_messages_widget(
+    area: Rect,
+    room: String,
+    messages: &Vec<String>,
+    onboarding_style: Style,
+) -> List {
     let list_items = build_list_items(area, messages, 2, default_formatter);
 
     // pad items to push chat to the bottom
@@ -110,35 +117,59 @@ fn build_messages_widget(area: Rect, room: String, messages: &Vec<String>) -> Li
     let title = format!(" Chat room: {room} ");
     let message_list = List::new(padded_items)
         .direction(ListDirection::TopToBottom)
-        .block(Block::default().borders(Borders::ALL).title(title));
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::new().dim())
+                .title(title)
+                .title_style(onboarding_style),
+        );
     message_list
 }
 
-fn build_users_widget(app_user_uuid: String, users: &Vec<(String, String)>) -> Table {
+fn build_users_widget(
+    app_user_uuid: String,
+    users: &Vec<(String, String)>,
+    onboarding_style: Style,
+) -> Table {
     let mut rows: Vec<Row> = vec![];
     for (uuid, username) in users {
-        let mut username = format!("{username}");
-        if uuid.clone() == app_user_uuid {
-            username.insert_str(0, "* ");
-        }
-        let row = Row::new(vec![username]);
+        let username = format!("{username}");
+        let style = if uuid.clone() == app_user_uuid {
+            Style::new().light_green()
+        } else {
+            Style::default()
+        };
+        let row = Row::new(vec![username]).style(style);
         rows.push(row);
     }
     let widths = [Constraint::Fill(1)];
     let table = Table::new(rows, widths)
         .column_spacing(1)
         .flex(layout::Flex::Legacy)
-        .block(Block::default().borders(Borders::ALL).title(" Users "));
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::new().dim())
+                .title(" Users ")
+                .title_style(onboarding_style),
+        );
 
     table
 }
 
 #[allow(dead_code)]
-fn build_logs_widget(area: Rect, logs: &Vec<String>) -> List {
+fn build_logs_widget(area: Rect, logs: &Vec<String>, onboarding_style: Style) -> List {
     let log_items = build_list_items(area, logs, 2, json_formatter);
     let log_list = List::new(log_items)
         .direction(ListDirection::TopToBottom)
-        .block(Block::default().borders(Borders::ALL).title(" Logs "));
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::new().dim())
+                .title(" Logs ")
+                .title_style(onboarding_style),
+        );
     log_list
 }
 

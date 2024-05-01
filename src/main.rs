@@ -49,7 +49,7 @@ async fn main() -> io::Result<()> {
     // main loop
     let mut should_quit = false;
     while !should_quit {
-        terminal.draw(|f| ui::render(f, &app))?; // draw ui
+        terminal.draw(|f| ui::render(f, &mut app))?; // draw ui
         should_quit = handle_events(&handle, &mut rx, &mut app)?; // handle input/server events
     }
 

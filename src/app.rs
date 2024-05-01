@@ -1,5 +1,7 @@
 use std::env;
 
+use ratatui::widgets::TableState;
+
 /// This module contains the AppState struct used to store the state of the application.
 use crate::names::generate_room_name;
 use crate::request::Request;
@@ -27,6 +29,7 @@ pub struct AppState {
     // TODO: store users as a HashMap<String, User> to allow for quick adds and removes
     pub users: Vec<User>,
     pub room: String,
+    pub room_table_state: TableState,
     // TODO: store rooms as a HashMap<String, User> to allow for quick adds and removes
     pub rooms: Vec<Room>,
     pub messages: Vec<String>,
@@ -48,6 +51,7 @@ impl Default for AppState {
             user: User::new_from_env_or_generate(),
             users: Vec::new(),
             room: room.clone(),
+            room_table_state: TableState::default(),
             rooms: Vec::new(),
             messages: Vec::new(),
             input: initial_input,
@@ -88,14 +92,22 @@ impl AppState {
         self.input.chars().all(char::is_whitespace)
     }
 
+    pub fn get_room_index(&self) -> Option<usize> {
+        self.rooms.iter().position(|room| room.name == self.room)
+    }
+
+    #[allow(dead_code)]
+    pub fn get_rooms_sorted(&self) -> Vec<Room> {
+        let mut rooms = self.rooms.clone();
+        rooms.sort_by_key(|room| (!room.name.eq(&self.room), room.name.clone()));
+        rooms
+    }
+
     pub fn get_rooms_with_counts(&self) -> Vec<(String, u32)> {
-        let rooms_with_counts = self
-            .rooms
+        self.rooms
             .iter()
             .map(|room| (room.name.clone(), room.user_count))
-            .collect();
-
-        rooms_with_counts
+            .collect()
     }
 
     pub fn add_user(&mut self, user: User) {
@@ -106,6 +118,10 @@ impl AppState {
 
     pub fn remove_user(&mut self, user: User) {
         self.users.retain(|u| u.uuid != user.uuid);
+    }
+
+    pub fn get_messages(&self) -> Vec<String> {
+        self.messages.clone()
     }
 
     pub fn get_logs(&self) -> Vec<String> {
