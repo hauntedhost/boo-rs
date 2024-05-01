@@ -80,6 +80,10 @@ impl AppState {
         };
     }
 
+    pub fn input_is_valid_message(&self) -> bool {
+        !is_blank(&self.input)
+    }
+
     pub fn get_rooms_with_counts(&self) -> Vec<(String, u32)> {
         let rooms_with_counts = self
             .rooms
@@ -139,4 +143,8 @@ fn room_from_env_or_generate() -> String {
         Ok(room) => room,
         Err(_) => generate_room_name(),
     }
+}
+
+fn is_blank(s: &str) -> bool {
+    s.chars().all(char::is_whitespace)
 }

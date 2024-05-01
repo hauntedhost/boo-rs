@@ -90,16 +90,14 @@ pub fn handle_events(
 
             if key.code == KeyCode::Enter {
                 // Ignore empty messages
-                if app.input.len() == 0 {
+                if !app.input_is_valid_message() {
                     return Ok(false);
                 }
 
                 match app.onboarding {
                     Onboarding::ConfirmingRoomName => {
-                        // set room to input
+                        // set room to input and advance onboarding
                         app.room = app.input.clone();
-
-                        // advance onboarding
                         app.advance_onboarding();
                     }
                     Onboarding::ConfirmingUsername => {

@@ -40,10 +40,10 @@ pub fn render(frame: &mut Frame, app: &AppState) {
     };
 
     // rooms area
-    // TODO: bold the current room, italicize the user counts
+    // TODO: bold the current room row
     let rooms_area = inner_layout[0];
     let rooms = app.get_rooms_with_counts();
-    let rooms_widget = build_rooms_widget(rooms_area, &rooms).style(widget_style);
+    let rooms_widget = build_rooms_widget(&rooms).style(widget_style);
     frame.render_widget(rooms_widget, rooms_area);
 
     // messages area
@@ -79,22 +79,19 @@ pub fn render(frame: &mut Frame, app: &AppState) {
     frame.set_cursor(x, y);
 }
 
-fn build_rooms_widget(area: Rect, rooms: &Vec<(String, u32)>) -> List {
-    let title = format!(" Rooms ");
-    let width = (area.width - 2) as usize;
-
-    let mut items: Vec<ListItem> = vec![];
-    for (room, count) in rooms {
-        let padding_len = width - (room.len() + count.to_string().len());
-        let padding = " ".repeat(padding_len);
-        let line = Line::from(Span::raw(format!("{room}{padding}{count}")));
-        let item = ListItem::from(Text::from(line));
-        items.push(item);
+fn build_rooms_widget(rooms: &Vec<(String, u32)>) -> Table {
+    let mut rows: Vec<Row> = vec![];
+    for (name, user_count) in rooms {
+        rows.push(Row::new(vec![format!("{name}"), format!("{user_count}")]));
     }
-    let list = List::new(items)
-        .direction(ListDirection::TopToBottom)
-        .block(Block::default().borders(Borders::ALL).title(title));
-    list
+
+    let widths = [Constraint::Fill(1), Constraint::Min(1)];
+    let table = Table::new(rows, widths)
+        .column_spacing(1)
+        .flex(layout::Flex::Legacy)
+        .block(Block::default().borders(Borders::ALL).title(" Rooms "));
+
+    table
 }
 
 fn build_messages_widget(area: Rect, room: String, messages: &Vec<String>) -> List {
