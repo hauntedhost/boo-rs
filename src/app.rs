@@ -121,9 +121,12 @@ impl AppState {
         };
     }
 
-    // Return a vector of username strings
-    pub fn get_usernames(&self) -> Vec<String> {
-        self.users.iter().map(|u| u.username.clone()).collect()
+    // Return a vector of (uuid, username) pairs
+    pub fn get_uuid_username_pairs(&self) -> Vec<(String, String)> {
+        self.users
+            .iter()
+            .map(|u| (u.uuid.clone(), u.username.clone()))
+            .collect()
     }
 
     // Build a join request

@@ -43,7 +43,7 @@ pub fn render(frame: &mut Frame, app: &AppState) {
     // TODO: bold the current room row
     let rooms_area = inner_layout[0];
     let rooms = app.get_rooms_with_counts();
-    let rooms_widget = build_rooms_widget(&rooms).style(widget_style);
+    let rooms_widget = build_rooms_widget(app.room.clone(), &rooms).style(widget_style);
     frame.render_widget(rooms_widget, rooms_area);
 
     // messages area
@@ -56,8 +56,9 @@ pub fn render(frame: &mut Frame, app: &AppState) {
     let sidebar_area = inner_layout[2];
     match app.sidebar {
         Sidebar::Users => {
-            let usernames = app.get_usernames();
-            let users_widget = build_users_widget(sidebar_area, &usernames).style(widget_style);
+            let users = app.get_uuid_username_pairs();
+            let users_widget =
+                build_users_widget(app.user.uuid.clone(), &users).style(widget_style);
             frame.render_widget(users_widget, sidebar_area);
         }
         Sidebar::Logs => {
@@ -79,10 +80,16 @@ pub fn render(frame: &mut Frame, app: &AppState) {
     frame.set_cursor(x, y);
 }
 
-fn build_rooms_widget(rooms: &Vec<(String, u32)>) -> Table {
+fn build_rooms_widget(app_room_name: String, rooms: &Vec<(String, u32)>) -> Table {
     let mut rows: Vec<Row> = vec![];
-    for (name, user_count) in rooms {
-        rows.push(Row::new(vec![format!("{name}"), format!("{user_count}")]));
+    for (room_name, user_count) in rooms {
+        let style = if room_name.clone() == app_room_name {
+            Style::default().light_blue()
+        } else {
+            Style::default()
+        };
+        let row = Row::new(vec![format!("{room_name}"), format!("{user_count}")]).style(style);
+        rows.push(row);
     }
 
     let widths = [Constraint::Fill(1), Constraint::Min(1)];
@@ -107,13 +114,24 @@ fn build_messages_widget(area: Rect, room: String, messages: &Vec<String>) -> Li
     message_list
 }
 
-#[allow(dead_code)]
-fn build_users_widget(area: Rect, usernames: &Vec<String>) -> List {
-    let items = build_list_items(area, usernames, 2, default_formatter);
-    let list = List::new(items)
-        .direction(ListDirection::TopToBottom)
+fn build_users_widget(app_user_uuid: String, users: &Vec<(String, String)>) -> Table {
+    let mut rows: Vec<Row> = vec![];
+    for (uuid, username) in users {
+        let style = if uuid.clone() == app_user_uuid {
+            Style::default().light_blue()
+        } else {
+            Style::default()
+        };
+        let row = Row::new(vec![format!("{username}")]).style(style);
+        rows.push(row);
+    }
+    let widths = [Constraint::Fill(1)];
+    let table = Table::new(rows, widths)
+        .column_spacing(1)
+        .flex(layout::Flex::Legacy)
         .block(Block::default().borders(Borders::ALL).title(" Users "));
-    list
+
+    table
 }
 
 #[allow(dead_code)]
