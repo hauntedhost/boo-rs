@@ -1,14 +1,16 @@
-/// This module contains code for handling events within the main app loop.
-/// It exposes a single `handle_events` function which handles both:
-///   - incoming messages from the server
-///   - keyboard input from the user
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
+use log::debug;
 use tokio::sync::mpsc::Receiver;
 
 use crate::app::{AppState, Onboarding};
 use crate::client;
 use crate::names::{generate_room_name, generate_username};
 use crate::response::{parse_response, Response};
+
+/// This module contains code for handling events within the main app loop.
+/// It exposes a single `handle_events` function which handles both:
+///   - incoming messages from the server
+///   - keyboard input from the user
 
 pub fn handle_events(
     handle: &ezsockets::Client<client::Client>,
@@ -17,6 +19,7 @@ pub fn handle_events(
 ) -> std::io::Result<bool> {
     match rx.try_recv() {
         Ok(message_payload) => {
+            debug!("received message: {}", message_payload);
             app.append_log(message_payload.clone());
 
             match parse_response(&message_payload) {

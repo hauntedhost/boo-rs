@@ -1,8 +1,23 @@
+use std::env;
+
 use chrono::Local;
 use fern::Dispatch;
+use log::LevelFilter;
+
+const DEFAULT_LEVEL: LevelFilter = LevelFilter::Warn;
 
 pub fn setup_logging(username: String) -> Result<(), fern::InitError> {
     let log_file = "logs/app.log";
+
+    let level = match env::var("LOG") {
+        Ok(ref s) if s == "error" => LevelFilter::Error,
+        Ok(ref s) if s == "warn" => LevelFilter::Warn,
+        Ok(ref s) if s == "info" => LevelFilter::Info,
+        Ok(ref s) if s == "debug" => LevelFilter::Debug,
+        Ok(ref s) if s == "trace" => LevelFilter::Trace,
+        Ok(_) => DEFAULT_LEVEL,
+        Err(_) => DEFAULT_LEVEL,
+    };
 
     // file based logging
     let file_config = Dispatch::new()
@@ -15,7 +30,7 @@ pub fn setup_logging(username: String) -> Result<(), fern::InitError> {
                 message
             ))
         })
-        .level(log::LevelFilter::Info)
+        .level(level)
         .chain(fern::log_file(log_file)?);
 
     file_config.apply()?;

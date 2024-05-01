@@ -179,7 +179,7 @@ fn build_input_widget(app: &AppState) -> (Paragraph, u16) {
         Onboarding::Completed => {
             if app.input_is_blank() {
                 input_width = 0;
-                let text = format!(" Message #{}", app.room);
+                let text = format!("Message #{}", app.room);
                 let span = Span::raw(text).style(Style::new().italic().dim());
                 Paragraph::new(span)
             } else {
