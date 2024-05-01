@@ -1,7 +1,8 @@
-/// This module contains all code for rendering the UI within the main app loop.
 use ratatui::{prelude::*, widgets::*};
 
 use crate::app::{AppState, Onboarding, Sidebar};
+
+/// This module contains all code for rendering the UI within the main app loop.
 
 #[allow(unused_variables)]
 pub fn render(frame: &mut Frame, app: &AppState) {
@@ -12,25 +13,30 @@ pub fn render(frame: &mut Frame, app: &AppState) {
         users,
         ..
     } = app;
-
-    let outer_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints(vec![Constraint::Min(1), Constraint::Length(3)])
-        .split(frame.size());
-
     let (rooms_width, messages_width, sidebar_width) = match app.sidebar {
-        Sidebar::Users => (25, 50, 25),
+        Sidebar::Users => (25, 55, 20),
         Sidebar::Logs => (25, 40, 35),
     };
 
-    let inner_layout = Layout::default()
+    let outer_layout = Layout::default()
         .direction(Direction::Horizontal)
         .constraints(vec![
             Constraint::Percentage(rooms_width),
             Constraint::Percentage(messages_width),
             Constraint::Percentage(sidebar_width),
         ])
-        .split(outer_layout[0]);
+        .split(frame.size());
+
+    let (rooms_area, messages_layout, sidebar_area) =
+        (outer_layout[0], outer_layout[1], outer_layout[2]);
+
+    let inner_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .spacing(0)
+        .margin(0)
+        .constraints(vec![Constraint::Min(1), Constraint::Length(3)])
+        .split(messages_layout);
+    let (messages_area, input_area) = (inner_layout[0], inner_layout[1]);
 
     // dim style for widgets if user has not finished onboarding
     let widget_style = if app.onboarding == Onboarding::Completed {
@@ -41,19 +47,16 @@ pub fn render(frame: &mut Frame, app: &AppState) {
 
     // rooms area
     // TODO: bold the current room row
-    let rooms_area = inner_layout[0];
     let rooms = app.get_rooms_with_counts();
     let rooms_widget = build_rooms_widget(app.room.clone(), &rooms).style(widget_style);
     frame.render_widget(rooms_widget, rooms_area);
 
     // messages area
-    let messages_area = inner_layout[1];
     let messages_widget =
         build_messages_widget(messages_area, app.room.clone(), messages).style(widget_style);
     frame.render_widget(messages_widget, messages_area);
 
     // sidebar area
-    let sidebar_area = inner_layout[2];
     match app.sidebar {
         Sidebar::Users => {
             let users = app.get_uuid_username_pairs();
@@ -69,26 +72,23 @@ pub fn render(frame: &mut Frame, app: &AppState) {
     };
 
     // input area
-    let input_area = outer_layout[1];
     let (input_widget, input_width) = build_input_widget(&app);
     frame.render_widget(input_widget, input_area);
 
     // cursor
-    let size = frame.size();
-    let x = input_width + 1;
-    let y = size.bottom() - 2;
+    let x = input_area.x + 1 + input_width;
+    let y = input_area.y + 1;
     frame.set_cursor(x, y);
 }
 
 fn build_rooms_widget(app_room_name: String, rooms: &Vec<(String, u32)>) -> Table {
     let mut rows: Vec<Row> = vec![];
     for (room_name, user_count) in rooms {
-        let style = if room_name.clone() == app_room_name {
-            Style::default().light_blue()
-        } else {
-            Style::default()
-        };
-        let row = Row::new(vec![format!("{room_name}"), format!("{user_count}")]).style(style);
+        let mut room_name = format!("{room_name}");
+        if room_name == app_room_name {
+            room_name.insert_str(0, "* ");
+        }
+        let row = Row::new(vec![format!("{room_name}"), format!("{user_count}")]);
         rows.push(row);
     }
 
@@ -117,12 +117,11 @@ fn build_messages_widget(area: Rect, room: String, messages: &Vec<String>) -> Li
 fn build_users_widget(app_user_uuid: String, users: &Vec<(String, String)>) -> Table {
     let mut rows: Vec<Row> = vec![];
     for (uuid, username) in users {
-        let style = if uuid.clone() == app_user_uuid {
-            Style::default().light_blue()
-        } else {
-            Style::default()
-        };
-        let row = Row::new(vec![format!("{username}")]).style(style);
+        let mut username = format!("{username}");
+        if uuid.clone() == app_user_uuid {
+            username.insert_str(0, "* ");
+        }
+        let row = Row::new(vec![username]);
         rows.push(row);
     }
     let widths = [Constraint::Fill(1)];
@@ -178,8 +177,15 @@ fn build_input_widget(app: &AppState) -> (Paragraph, u16) {
             Paragraph::new(line)
         }
         Onboarding::Completed => {
-            input_width = app.input.len() as u16;
-            Paragraph::new(app.input.clone())
+            if app.input_is_blank() {
+                input_width = 0;
+                let text = format!(" Message #{}", app.room);
+                let span = Span::raw(text).style(Style::new().italic().dim());
+                Paragraph::new(span)
+            } else {
+                input_width = app.input.len() as u16;
+                Paragraph::new(app.input.clone())
+            }
         }
     };
 
