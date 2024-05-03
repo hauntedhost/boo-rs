@@ -11,7 +11,7 @@ use crossterm::terminal::{
 use crossterm::ExecutableCommand;
 use log::info;
 use ratatui::prelude::*;
-use std::io::{self, stdout};
+use std::io::stdout;
 
 use crate::app::AppState;
 use crate::events::handle_events;
@@ -19,7 +19,7 @@ use crate::logging::setup_logging;
 use crate::socket::{connect_socket, create_channel};
 
 #[tokio::main]
-async fn main() -> io::Result<()> {
+async fn main() -> std::io::Result<()> {
     // init app state
     let mut app = AppState::new();
 

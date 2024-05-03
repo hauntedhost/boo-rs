@@ -39,8 +39,7 @@ pub fn handle_key_event(
     app: &mut AppState,
     handle: &ezsockets::Client<client::Client>,
     key: KeyEvent,
-) -> Result<bool, std::io::Error> {
-    // TODO: return the entire match and ensure all handlers return Result<bool, std::io::Error>
+) {
     match parse_key_action(app, key) {
         KeyAction::AppendInputChar(c) => app.input.push(c),
         KeyAction::ClearInput => app.input.clear(),
@@ -58,8 +57,6 @@ pub fn handle_key_event(
         KeyAction::ToggleSidebar => app.toggle_sidebar(),
         KeyAction::Ignore => (),
     }
-
-    Ok(false)
 }
 
 // KeyAction parsing

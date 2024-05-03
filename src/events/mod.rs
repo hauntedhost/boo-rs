@@ -20,7 +20,7 @@ pub fn handle_events(
     handle: &ezsockets::Client<client::Client>,
     rx: &mut Receiver<String>,
     app: &mut AppState,
-) -> std::io::Result<bool> {
+) -> std::io::Result<()> {
     if app.update_heartbeat_timer() {
         let heartbeat_request = app.heartbeat_request();
         handle.call(heartbeat_request).expect("join error");
@@ -36,9 +36,9 @@ pub fn handle_events(
     // Handle keyboard input from the user
     if event::poll(std::time::Duration::from_millis(50))? {
         if let Event::Key(key) = event::read()? {
-            return handle_key_event(app, handle, key);
+            handle_key_event(app, handle, key);
         }
     }
 
-    Ok(false)
+    Ok(())
 }
