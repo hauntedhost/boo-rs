@@ -1,4 +1,7 @@
-use ratatui::{prelude::*, widgets::*};
+use ratatui::{
+    prelude::*,
+    widgets::{block::Title, *},
+};
 
 use crate::app::{AppState, Focus, Onboarding, Sidebar};
 
@@ -53,30 +56,58 @@ pub fn render(frame: &mut Frame, app: &mut AppState) {
         return ();
     }
 
+    // outer vertical layout
+    // - info area
+    // - main_outer_layout
+
+    let outer_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(vec![Constraint::Length(3), Constraint::Min(1)])
+        .split(frame.size());
+
+    let (info_area, main_outer_layout) = (outer_layout[0], outer_layout[1]);
+
+    // horizontal layout inside main_outer_layout
+    // - rooms area | messages_outer_layout | sidebar area
+
     let (rooms_width, messages_width, sidebar_width) = match app.ui_sidebar_view {
         Sidebar::Users => (25, 55, 20),
         Sidebar::Logs => (25, 40, 35),
     };
 
-    let outer_layout = Layout::default()
+    let main_layout = Layout::default()
         .direction(Direction::Horizontal)
         .constraints(vec![
             Constraint::Percentage(rooms_width),
             Constraint::Percentage(messages_width),
             Constraint::Percentage(sidebar_width),
         ])
-        .split(frame.size());
+        .split(main_outer_layout);
 
-    let (rooms_area, messages_layout, sidebar_area) =
-        (outer_layout[0], outer_layout[1], outer_layout[2]);
+    let (rooms_area, messages_outer_layout, sidebar_area) =
+        (main_layout[0], main_layout[1], main_layout[2]);
 
-    let inner_layout = Layout::default()
+    // vertical layout inside messages_outer_layout
+    // - messages area
+    // - input area
+
+    let messages_layout = Layout::default()
         .direction(Direction::Vertical)
         .spacing(0)
         .margin(0)
         .constraints(vec![Constraint::Min(1), Constraint::Length(3)])
-        .split(messages_layout);
-    let (messages_area, input_area) = (inner_layout[0], inner_layout[1]);
+        .split(messages_outer_layout);
+
+    let (messages_area, input_area) = (messages_layout[0], messages_layout[1]);
+
+    // info area
+    let info_widget = build_info_widget(
+        app.get_username(),
+        app.room.clone(),
+        app.socket_url.clone(),
+        app.onboarding,
+    );
+    frame.render_widget(info_widget, info_area);
 
     // rooms area
     let rooms = app.get_rooms_with_counts();
@@ -116,6 +147,85 @@ pub fn render(frame: &mut Frame, app: &mut AppState) {
     frame.set_cursor(x, y);
 }
 
+fn build_info_widget(
+    username: String,
+    room: String,
+    socket_url: Option<String>,
+    onboarding: Onboarding,
+) -> Table<'static> {
+    let socket_url = socket_url.unwrap_or_else(|| "".to_string());
+    // let row = Row::new(vec![
+    //     Cell::from(Line::from(vec![
+    //         // Span::styled("Username: ", Style::default().light_blue().dim()),
+    //         Span::raw(username),
+    //     ])),
+    //     Cell::from(Text::from(socket_url).alignment(Alignment::Right)),
+    // ]);
+
+    let (room, hashtag) = if onboarding == Onboarding::ConfirmingUsername {
+        ("".to_string(), "".to_string())
+    } else {
+        // format!("#{room}")
+        (room, " # ".to_string())
+    };
+
+    // let socket_url = if onboarding != Onboarding::Completed {
+    //     "".to_string()
+    // } else {
+    //     format!("@{socket_url}")
+    // };
+    // Style::new().light_green()
+
+    let row = Row::new(vec![
+        Cell::from(Line::from(vec![
+            Span::raw("👻 "),
+            Span::raw(username),
+            Span::raw(hashtag),
+            Span::styled(room, Style::default()),
+        ])),
+        //
+        // Cell::from(Span::raw(format!("👻 {username} {room}"))),
+        // Cell::from(Span::raw(room)),
+        Cell::from(Text::from(format!("@{socket_url}")).alignment(Alignment::Right)),
+    ]);
+
+    // Cell::from(Line::from(vec![
+    // // Span::styled("Username: ", Style::default().light_blue().dim()),
+    // Span::raw(username),
+    // Span::raw(" # "),
+    // Span::raw(room),
+    // Span::raw(" @ "),
+    // Span::raw(socket_url),
+
+    let rows = vec![row];
+    // let widths = [Constraint::Percentage(50), Constraint::Fill(1)];
+    // let widths = [Constraint::Fill(1)];
+    let widths = [
+        Constraint::Fill(1),
+        // Constraint::Fill(1),
+        Constraint::Fill(1),
+    ];
+
+    // let style = if onboarding == Onboarding::Completed {
+    //     Style::new().not_dim()
+    // } else {
+    //     Style::new().dim()
+    // };
+
+    let table = Table::new(rows, widths)
+        .column_spacing(1)
+        .flex(layout::Flex::Legacy)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::new().dim())
+                .padding(Padding::symmetric(1, 0)),
+        )
+        .style(Style::new().dim());
+
+    table
+}
+
 fn build_rooms_widget(
     rooms: &Vec<(String, u32)>,
     current_room: String,
@@ -127,9 +237,10 @@ fn build_rooms_widget(
         let room_name = format!("{room_name}");
 
         let row_style = if room_name == current_room {
-            Style::new().light_green()
+            // Style::new().light_green()
+            Style::default().not_dim()
         } else {
-            Style::default()
+            Style::default().dim()
         };
 
         let row = Row::new(vec![format!("{room_name}"), format!("{user_count}")]).style(row_style);
@@ -138,15 +249,17 @@ fn build_rooms_widget(
 
     let widths = [Constraint::Fill(1), Constraint::Min(1)];
 
-    let (border_style, title_style) = if onboarding == Onboarding::Completed {
+    let (border_style, _title_style) = if onboarding == Onboarding::Completed {
         if focus == Focus::Rooms {
             (Style::new().not_dim(), Style::new().not_dim())
         } else {
-            (Style::new().dim(), Style::new().dim())
+            (Style::new().dim(), Style::new().not_dim())
         }
     } else {
         (Style::new().dim(), Style::new().dim())
     };
+
+    let title_style = get_title_style();
 
     let table = Table::new(rows, widths)
         .column_spacing(1)
@@ -163,25 +276,36 @@ fn build_rooms_widget(
     table
 }
 
+fn get_title_style() -> Style {
+    Style::new().light_blue().not_dim()
+}
+
 fn build_messages_widget(
     area: Rect,
-    room: String,
+    _room: String,
     messages: &Vec<String>,
-    onboarding: Onboarding,
+    _onboarding: Onboarding,
 ) -> List {
     let list_items = build_list_items(area, messages, 2, default_formatter);
 
     // pad items to push chat to the bottom
     let padded_items = pad_list(list_items.clone(), area.height - 2);
 
-    let title = format!(" Chat room: {room} ");
+    let title = Title::from(Line::from(vec![
+        Span::styled(" Chat ", Style::default().light_blue().not_dim()),
+        // Span::raw(room),
+    ]));
 
-    // dim title if user has not finished onboarding
-    let title_style = if onboarding == Onboarding::Completed {
-        Style::new().not_dim()
-    } else {
-        Style::new().dim()
-    };
+    // let title = format!(" Chat room: {room} ");
+
+    // // dim title if user has not finished onboarding
+    // let title_style = if onboarding == Onboarding::Completed {
+    //     Style::new().not_dim()
+    // } else {
+    //     Style::new().dim()
+    // };
+
+    // let title_style = get_title_style();
 
     let message_list = List::new(padded_items)
         .direction(ListDirection::TopToBottom)
@@ -189,8 +313,7 @@ fn build_messages_widget(
             Block::default()
                 .borders(Borders::ALL)
                 .border_style(Style::new().dim())
-                .title(title)
-                .title_style(title_style),
+                .title(title),
         );
     message_list
 }
@@ -198,15 +321,17 @@ fn build_messages_widget(
 fn build_users_widget(
     app_user_uuid: String,
     users: &Vec<(String, String)>,
-    onboarding: Onboarding,
+    _onboarding: Onboarding,
 ) -> Table {
     let mut rows: Vec<Row> = vec![];
     for (uuid, username) in users {
         let username = format!("{username}");
         let style = if uuid.clone() == app_user_uuid {
-            Style::new().light_green()
+            // Style::new().light_green()
+            Style::default().not_dim()
         } else {
-            Style::default()
+            // Style::default()
+            Style::default().dim()
         };
         let row = Row::new(vec![username]).style(style);
         rows.push(row);
@@ -214,11 +339,13 @@ fn build_users_widget(
     let widths = [Constraint::Fill(1)];
 
     // dim title if user has not finished onboarding
-    let title_style = if onboarding == Onboarding::Completed {
-        Style::new().not_dim()
-    } else {
-        Style::new().dim()
-    };
+    // let title_style = if onboarding == Onboarding::Completed {
+    //     Style::new().not_dim()
+    // } else {
+    //     Style::new().dim()
+    // };
+
+    let title_style = get_title_style();
 
     let table = Table::new(rows, widths)
         .column_spacing(1)
@@ -238,12 +365,14 @@ fn build_users_widget(
 fn build_logs_widget(area: Rect, logs: &Vec<String>, onboarding: Onboarding) -> List {
     let log_items = build_list_items(area, logs, 2, json_formatter);
 
-    // dim title if user has not finished onboarding
-    let title_style = if onboarding == Onboarding::Completed {
-        Style::new().not_dim()
-    } else {
-        Style::new().dim()
-    };
+    // // dim title if user has not finished onboarding
+    // let title_style = if onboarding == Onboarding::Completed {
+    //     Style::new().not_dim()
+    // } else {
+    //     Style::new().dim()
+    // };
+
+    let title_style = get_title_style();
 
     let log_list = List::new(log_items)
         .direction(ListDirection::TopToBottom)
@@ -261,21 +390,6 @@ fn build_input_widget(app: &AppState) -> (Paragraph, u16) {
     let input_width: u16;
 
     let input_paragraph = match app.onboarding {
-        Onboarding::ConfirmingRoomName => {
-            // dim the input if room is still the generated room name
-            let style = if app.input == app.room {
-                Style::new().italic().dim()
-            } else {
-                Style::default()
-            };
-
-            let line = Line::from(vec![
-                Span::raw("Enter a room name > "),
-                Span::styled(app.input.clone(), style),
-            ]);
-            input_width = line.width() as u16;
-            Paragraph::new(line)
-        }
         Onboarding::ConfirmingUsername => {
             // dim the input text if input is still the generated username
             let style = if app.input == app.user.username {
@@ -286,6 +400,21 @@ fn build_input_widget(app: &AppState) -> (Paragraph, u16) {
 
             let line = Line::from(vec![
                 Span::raw("Enter a username > "),
+                Span::styled(app.input.clone(), style),
+            ]);
+            input_width = line.width() as u16;
+            Paragraph::new(line)
+        }
+        Onboarding::ConfirmingRoomName => {
+            // dim the input if room is still the generated room name
+            let style = if app.input == app.room {
+                Style::new().italic().dim()
+            } else {
+                Style::default()
+            };
+
+            let line = Line::from(vec![
+                Span::raw("Enter a room name > "),
                 Span::styled(app.input.clone(), style),
             ]);
             input_width = line.width() as u16;

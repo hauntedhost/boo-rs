@@ -18,8 +18,8 @@ enum Command {
 enum KeyAction {
     AppendInputChar(char),
     ClearInput,
-    ConfirmRoomName,
-    ConfirmUsernameAndJoin,
+    ConfirmUsername,
+    ConfirmRoomNameAndJoin,
     CycleFocus,
     DeleteLastInputChar,
     QuitApp,
@@ -43,8 +43,8 @@ pub fn handle_key_event(
     match parse_key_action(app, key) {
         KeyAction::AppendInputChar(c) => app.input.push(c),
         KeyAction::ClearInput => app.input.clear(),
-        KeyAction::ConfirmRoomName => handle_confirm_room_name(app),
-        KeyAction::ConfirmUsernameAndJoin => handle_confirm_username_and_join(app, handle),
+        KeyAction::ConfirmUsername => handle_confirm_username(app),
+        KeyAction::ConfirmRoomNameAndJoin => handle_confirm_room_name_and_join(app, handle),
         KeyAction::CycleFocus => app.cycle_focus(),
         KeyAction::DeleteLastInputChar => handle_delete_last_input_char(app),
         KeyAction::QuitApp => app.quit(),
@@ -131,8 +131,8 @@ fn parse_key_action(app: &mut AppState, key: KeyEvent) -> KeyAction {
         }
 
         return match app.onboarding {
-            Onboarding::ConfirmingRoomName => KeyAction::ConfirmRoomName,
-            Onboarding::ConfirmingUsername => KeyAction::ConfirmUsernameAndJoin,
+            Onboarding::ConfirmingUsername => KeyAction::ConfirmUsername,
+            Onboarding::ConfirmingRoomName => KeyAction::ConfirmRoomNameAndJoin,
             Onboarding::Completed => KeyAction::SubmitMessage,
         };
     }
@@ -253,18 +253,18 @@ fn handle_command(
 
 // KeyAction handlers: Onboarding
 
-// set room to input and advance onboarding
-fn handle_confirm_room_name(app: &mut AppState) {
-    app.room = app.input.clone();
+// set username to input and advance onboarding
+fn handle_confirm_username(app: &mut AppState) {
+    app.user.username = app.input.clone();
     app.advance_onboarding();
 }
 
-// set username to input, send join request and advance onboarding
-fn handle_confirm_username_and_join(
+// set room name to input, send join request and advance onboarding
+fn handle_confirm_room_name_and_join(
     app: &mut AppState,
     handle: &ezsockets::Client<client::Client>,
 ) {
-    app.user.username = app.input.clone();
+    app.room = app.input.clone();
     let request = app.join_request();
     handle.call(request).expect("join error");
     app.advance_onboarding();

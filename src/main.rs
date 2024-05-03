@@ -29,7 +29,7 @@ async fn main() -> std::io::Result<()> {
 
     // connect websocket
     let (tx, mut rx) = create_channel();
-    let (handle, future) = connect_socket(tx).await;
+    let (handle, future) = connect_socket(tx, &mut app).await;
 
     tokio::spawn(async move {
         future.await.unwrap();

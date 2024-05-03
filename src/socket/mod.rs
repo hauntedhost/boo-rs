@@ -10,6 +10,7 @@ use std::future::Future;
 use tokio::sync::mpsc;
 use url::Url;
 
+use crate::app::AppState;
 use crate::socket::client::Client;
 
 const DEFAULT_URL: &str = "wss://chat.haunted.host";
@@ -21,12 +22,14 @@ pub fn create_channel() -> (mpsc::Sender<String>, mpsc::Receiver<String>) {
 
 pub async fn connect_socket(
     tx: mpsc::Sender<String>,
+    app: &mut AppState,
 ) -> (
     ezsockets::Client<Client>,
     impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>>,
 ) {
     let socket_url = get_socket_url();
     let config = ClientConfig::new(socket_url.clone());
+    app.socket_url = Some(socket_url.to_string());
 
     info!("connecting to websocket {} ...", socket_url);
 
