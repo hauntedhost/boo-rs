@@ -42,6 +42,7 @@ pub struct AppState {
     messages: Vec<String>,
     // TODO: store users and rooms as HashMap<String, User/Room> to allow for quick adds and removes
     rooms: Vec<Room>,
+    selected_room_index: Option<usize>,
     users: Vec<User>,
 }
 
@@ -62,6 +63,7 @@ impl Default for AppState {
             room: room.clone(),
             room_table_state: TableState::default(),
             rooms: Vec::new(),
+            selected_room_index: None,
             sidebar: Sidebar::default(),
             user: User::new_from_env_or_generate(),
             users: Vec::new(),
@@ -129,10 +131,30 @@ impl AppState {
             .collect()
     }
 
-    pub fn get_room_index(&self) -> Option<usize> {
+    // room_index
+
+    pub fn get_selected_or_current_room_index(&self) -> Option<usize> {
+        self.selected_room_index
+            .or_else(|| self.get_current_room_index())
+    }
+
+    pub fn select_next_room(&mut self) {
+        if let Some(index) = self.get_selected_or_current_room_index() {
+            let next_index = (index + 1) % self.get_rooms().len();
+            self.selected_room_index = Some(next_index);
+        }
+    }
+
+    fn get_current_room_index(&self) -> Option<usize> {
         self.get_rooms()
             .iter()
             .position(|room| room.name == self.room)
+    }
+
+    fn get_rooms_sorted(&self) -> Vec<Room> {
+        let mut rooms = self.rooms.clone();
+        rooms.sort_by_key(|room| (!room.name.eq(&self.room), room.name.clone()));
+        rooms
     }
 
     // users
@@ -160,6 +182,12 @@ impl AppState {
 
     pub fn set_users(&mut self, users: Vec<User>) {
         self.users = users;
+    }
+
+    fn get_users_sorted(&self) -> Vec<User> {
+        let mut users = self.users.clone();
+        users.sort_by_key(|user| user.username.clone());
+        users
     }
 
     // messages
@@ -211,20 +239,6 @@ impl AppState {
 
     pub fn shout_request(&mut self, message: String) -> Request {
         Request::new_shout(self.room.clone(), message)
-    }
-
-    // private
-
-    fn get_users_sorted(&self) -> Vec<User> {
-        let mut users = self.users.clone();
-        users.sort_by_key(|user| user.username.clone());
-        users
-    }
-
-    fn get_rooms_sorted(&self) -> Vec<Room> {
-        let mut rooms = self.rooms.clone();
-        rooms.sort_by_key(|room| (!room.name.eq(&self.room), room.name.clone()));
-        rooms
     }
 }
 

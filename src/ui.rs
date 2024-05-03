@@ -41,8 +41,9 @@ pub fn render(frame: &mut Frame, app: &mut AppState) {
 
     // rooms area
     let rooms = app.get_rooms_with_counts();
-    let rooms_widget = build_rooms_widget(&rooms, onboarding_style);
-    app.room_table_state.select(app.get_room_index());
+    let rooms_widget = build_rooms_widget(&rooms, app.room.clone(), onboarding_style);
+    app.room_table_state
+        .select(app.get_selected_or_current_room_index());
     frame.render_stateful_widget(rooms_widget, rooms_area, &mut app.room_table_state);
 
     // messages area
@@ -75,11 +76,22 @@ pub fn render(frame: &mut Frame, app: &mut AppState) {
     frame.set_cursor(x, y);
 }
 
-fn build_rooms_widget(rooms: &Vec<(String, u32)>, onboarding_style: Style) -> Table {
+fn build_rooms_widget(
+    rooms: &Vec<(String, u32)>,
+    current_room: String,
+    onboarding_style: Style,
+) -> Table {
     let mut rows: Vec<Row> = vec![];
     for (room_name, user_count) in rooms {
         let room_name = format!("{room_name}");
-        let row = Row::new(vec![format!("{room_name}"), format!("{user_count}")]);
+
+        let style = if room_name == current_room {
+            Style::new().light_green()
+        } else {
+            Style::default()
+        };
+
+        let row = Row::new(vec![format!("{room_name}"), format!("{user_count}")]).style(style);
         rows.push(row);
     }
 
@@ -87,9 +99,7 @@ fn build_rooms_widget(rooms: &Vec<(String, u32)>, onboarding_style: Style) -> Ta
     let table = Table::new(rows, widths)
         .column_spacing(1)
         .flex(layout::Flex::Legacy)
-        .style(Style::new().dim())
         .highlight_symbol("> ")
-        .highlight_style(Style::new().not_dim().light_green())
         .block(
             Block::default()
                 .borders(Borders::ALL)

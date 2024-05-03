@@ -41,6 +41,7 @@ async fn main() -> io::Result<()> {
     let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
 
     // main loop
+    // TODO: move should_quit to app.should_quit
     let mut should_quit = false;
     while !should_quit {
         terminal.draw(|f| ui::render(f, &mut app))?; // draw ui
