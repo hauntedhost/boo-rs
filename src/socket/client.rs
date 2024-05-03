@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use log::{debug, error, info};
+use log::{error, info};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use tokio::sync::mpsc;
 use uuid::Uuid;
@@ -78,7 +78,7 @@ impl ezsockets::ClientExt for Client {
     async fn on_call(&mut self, request: Request) -> Result<(), ezsockets::Error> {
         let request_payload = request.to_payload(self.next_refs());
 
-        debug!("sending request: {request_payload}");
+        info!("sending request: {request_payload}");
 
         self.handle
             .text(request_payload)

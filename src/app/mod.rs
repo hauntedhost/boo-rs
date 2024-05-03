@@ -3,12 +3,15 @@ pub mod user;
 
 use ratatui::widgets::TableState;
 use std::env;
+use std::time::{Duration, Instant};
 
 use crate::app::{room::Room, user::User};
 use crate::names::generate_room_name;
 use crate::socket::request::Request;
 
 /// This module contains the AppState struct used to store the state of the application.
+
+const HEARTBEAT_INTERVAL: Duration = Duration::new(30, 0);
 
 #[derive(Debug, Default)]
 pub enum Sidebar {
@@ -27,18 +30,19 @@ pub enum Onboarding {
 
 #[derive(Debug)]
 pub struct AppState {
-    pub user: User,
+    pub input: String,
+    pub onboarding: Onboarding,
     pub room: String,
     pub room_table_state: TableState,
-    pub input: String,
     pub sidebar: Sidebar,
-    pub onboarding: Onboarding,
+    pub user: User,
+    last_heartbeat: Instant,
+    logs: Vec<String>,
+    logs_enabled: bool,
     messages: Vec<String>,
     // TODO: store users and rooms as HashMap<String, User/Room> to allow for quick adds and removes
     rooms: Vec<Room>,
     users: Vec<User>,
-    logs: Vec<String>,
-    logs_enabled: bool,
 }
 
 impl Default for AppState {
@@ -49,17 +53,18 @@ impl Default for AppState {
         let initial_input = room.clone();
 
         AppState {
-            user: User::new_from_env_or_generate(),
-            users: Vec::new(),
+            input: initial_input,
+            last_heartbeat: Instant::now(),
+            logs: Vec::new(),
+            logs_enabled: true,
+            messages: Vec::new(),
+            onboarding: Onboarding::default(),
             room: room.clone(),
             room_table_state: TableState::default(),
             rooms: Vec::new(),
-            messages: Vec::new(),
-            input: initial_input,
             sidebar: Sidebar::default(),
-            onboarding: Onboarding::default(),
-            logs: Vec::new(),
-            logs_enabled: true,
+            user: User::new_from_env_or_generate(),
+            users: Vec::new(),
         }
     }
 }
@@ -67,6 +72,16 @@ impl Default for AppState {
 impl AppState {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    // heartbeat
+    pub fn update_heartbeat_timer(&mut self) -> bool {
+        if self.last_heartbeat.elapsed() >= HEARTBEAT_INTERVAL {
+            self.last_heartbeat = Instant::now();
+            true
+        } else {
+            false
+        }
     }
 
     // onboarding
@@ -177,6 +192,10 @@ impl AppState {
     }
 
     // requests
+
+    pub fn heartbeat_request(&mut self) -> Request {
+        Request::heartbeat(self.user.clone())
+    }
 
     pub fn join_request(&mut self) -> Request {
         Request::join(self.room.clone(), self.user.clone())

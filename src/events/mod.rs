@@ -21,6 +21,11 @@ pub fn handle_events(
     rx: &mut Receiver<String>,
     app: &mut AppState,
 ) -> std::io::Result<bool> {
+    if app.update_heartbeat_timer() {
+        let heartbeat_request = app.heartbeat_request();
+        handle.call(heartbeat_request).expect("join error");
+    }
+
     // Handle incoming messages from the socket
     match rx.try_recv() {
         Ok(message_payload) => handle_message_event(app, message_payload),
