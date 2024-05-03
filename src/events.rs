@@ -3,9 +3,9 @@ use log::{debug, error, info};
 use tokio::sync::mpsc::{self, Receiver};
 
 use crate::app::{is_blank, AppState, Onboarding};
-use crate::client;
 use crate::names::{generate_room_name, generate_username};
-use crate::response::{parse_response, Response};
+use crate::socket::client;
+use crate::socket::response::{parse_response, Response};
 
 /// This module contains code for handling events within the main app loop.
 /// It exposes a single `handle_events` function which handles both:
@@ -18,6 +18,7 @@ pub fn handle_events(
     app: &mut AppState,
 ) -> std::io::Result<bool> {
     match rx.try_recv() {
+        // TODO: on Ok(_) delegate to events/handle_response.rs
         Ok(message_payload) => {
             debug!("received message: {}", message_payload);
             app.append_log(message_payload.clone());
@@ -58,6 +59,7 @@ pub fn handle_events(
         Err(error) => error!("rx.try_recv error: {:?}", error),
     }
 
+    // TODO: delegate to events/handle_input.rs
     if event::poll(std::time::Duration::from_millis(50))? {
         if let Event::Key(key) = event::read()? {
             if key.code == KeyCode::Esc
@@ -111,7 +113,8 @@ pub fn handle_events(
                         app.advance_onboarding();
                     }
                     Onboarding::Completed => {
-                        // handle join command
+                        // TODO: if app.input.starts_with("/") { delegate to command handler }
+                        // /join command
                         if app.input.starts_with("/join") {
                             let prefix = "/join";
                             let room = app.input.trim()[prefix.len()..].to_string();
@@ -134,7 +137,12 @@ pub fn handle_events(
                             return Ok(false);
                         }
 
-                        // TODO: handle /username change
+                        // /quit command
+                        if app.input.eq("/quit") {
+                            return Ok(true);
+                        }
+
+                        // TODO: handle /username to change username
                         //   1. push this message uniquely, e.g. "user x has changed their name to y"
                         //   2. the server needs to handle the change too
                         //   3. the rx.try_recv() also has to handle the name change broadcast

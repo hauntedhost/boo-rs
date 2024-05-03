@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use tokio::sync::mpsc;
 use uuid::Uuid;
 
-use crate::request::Request;
+use crate::socket::request::Request;
 
 /// This module contains the `Client` struct and ezsockets client implementation.
 /// It handles internal calls and relays messages to the server.

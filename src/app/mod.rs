@@ -1,10 +1,12 @@
+pub mod room;
+pub mod user;
+
 use ratatui::widgets::TableState;
 use std::env;
 
+use crate::app::{room::Room, user::User};
 use crate::names::generate_room_name;
-use crate::request::Request;
-use crate::room::Room;
-use crate::user::User;
+use crate::socket::request::Request;
 
 /// This module contains the AppState struct used to store the state of the application.
 

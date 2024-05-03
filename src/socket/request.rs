@@ -1,8 +1,8 @@
 use serde_json::{json, Value as SerdeValue};
 
-use crate::client::Refs;
-use crate::message::Message;
-use crate::user::User;
+use crate::app::user::User;
+use crate::socket::client::Refs;
+use crate::socket::message::Message;
 
 // This module contains the Request struct used to create requests to be sent to the server.
 

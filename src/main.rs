@@ -1,15 +1,9 @@
 mod app;
-mod client;
 mod events;
 mod logging;
-mod message;
 mod names;
-mod request;
-mod response;
-mod room;
 mod socket;
 mod ui;
-mod user;
 
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
