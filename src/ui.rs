@@ -1,13 +1,13 @@
 use ratatui::{prelude::*, widgets::*};
 
-use crate::app::{AppState, Onboarding, Sidebar};
+use crate::app::{AppState, Focus, Onboarding, Sidebar};
 
 /// This module contains all code for rendering the UI within the main app loop.
 
 #[allow(unused_variables)]
 pub fn render(frame: &mut Frame, app: &mut AppState) {
     let AppState { user, input, .. } = app;
-    let (rooms_width, messages_width, sidebar_width) = match app.sidebar {
+    let (rooms_width, messages_width, sidebar_width) = match app.ui_sidebar_view {
         Sidebar::Users => (25, 55, 20),
         Sidebar::Logs => (25, 40, 35),
     };
@@ -32,36 +32,30 @@ pub fn render(frame: &mut Frame, app: &mut AppState) {
         .split(messages_layout);
     let (messages_area, input_area) = (inner_layout[0], inner_layout[1]);
 
-    // dim style for widgets if user has not finished onboarding
-    let onboarding_style = if app.onboarding == Onboarding::Completed {
-        Style::new().not_dim()
-    } else {
-        Style::new().dim()
-    };
-
     // rooms area
     let rooms = app.get_rooms_with_counts();
-    let rooms_widget = build_rooms_widget(&rooms, app.room.clone(), onboarding_style);
-    app.room_table_state
+    let rooms_widget =
+        build_rooms_widget(&rooms, app.room.clone(), app.onboarding, app.ui_focus_area);
+    app.ui_room_table_state
         .select(app.get_selected_or_current_room_index());
-    frame.render_stateful_widget(rooms_widget, rooms_area, &mut app.room_table_state);
+    frame.render_stateful_widget(rooms_widget, rooms_area, &mut app.ui_room_table_state);
 
     // messages area
     let messages = app.get_messages();
     let messages_widget =
-        build_messages_widget(messages_area, app.room.clone(), &messages, onboarding_style);
+        build_messages_widget(messages_area, app.room.clone(), &messages, app.onboarding);
     frame.render_widget(messages_widget, messages_area);
 
     // sidebar area
-    match app.sidebar {
+    match app.ui_sidebar_view {
         Sidebar::Users => {
             let users = app.get_uuid_username_pairs();
-            let users_widget = build_users_widget(app.user.uuid.clone(), &users, onboarding_style);
+            let users_widget = build_users_widget(app.user.uuid.clone(), &users, app.onboarding);
             frame.render_widget(users_widget, sidebar_area);
         }
         Sidebar::Logs => {
             let logs = app.get_logs();
-            let logs_widget = build_logs_widget(sidebar_area, &logs, onboarding_style);
+            let logs_widget = build_logs_widget(sidebar_area, &logs, app.onboarding);
             frame.render_widget(logs_widget, sidebar_area);
         }
     };
@@ -79,23 +73,35 @@ pub fn render(frame: &mut Frame, app: &mut AppState) {
 fn build_rooms_widget(
     rooms: &Vec<(String, u32)>,
     current_room: String,
-    onboarding_style: Style,
+    onboarding: Onboarding,
+    focus: Focus,
 ) -> Table {
     let mut rows: Vec<Row> = vec![];
     for (room_name, user_count) in rooms {
         let room_name = format!("{room_name}");
 
-        let style = if room_name == current_room {
+        let row_style = if room_name == current_room {
             Style::new().light_green()
         } else {
             Style::default()
         };
 
-        let row = Row::new(vec![format!("{room_name}"), format!("{user_count}")]).style(style);
+        let row = Row::new(vec![format!("{room_name}"), format!("{user_count}")]).style(row_style);
         rows.push(row);
     }
 
     let widths = [Constraint::Fill(1), Constraint::Min(1)];
+
+    let (border_style, title_style) = if onboarding == Onboarding::Completed {
+        if focus == Focus::Rooms {
+            (Style::new().not_dim(), Style::new().not_dim())
+        } else {
+            (Style::new().dim(), Style::new().dim())
+        }
+    } else {
+        (Style::new().dim(), Style::new().dim())
+    };
+
     let table = Table::new(rows, widths)
         .column_spacing(1)
         .flex(layout::Flex::Legacy)
@@ -103,9 +109,9 @@ fn build_rooms_widget(
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .border_style(Style::new().dim())
+                .border_style(border_style)
                 .title(" Rooms ")
-                .title_style(onboarding_style),
+                .title_style(title_style),
         );
 
     table
@@ -115,7 +121,7 @@ fn build_messages_widget(
     area: Rect,
     room: String,
     messages: &Vec<String>,
-    onboarding_style: Style,
+    onboarding: Onboarding,
 ) -> List {
     let list_items = build_list_items(area, messages, 2, default_formatter);
 
@@ -123,6 +129,14 @@ fn build_messages_widget(
     let padded_items = pad_list(list_items.clone(), area.height - 2);
 
     let title = format!(" Chat room: {room} ");
+
+    // dim title if user has not finished onboarding
+    let title_style = if onboarding == Onboarding::Completed {
+        Style::new().not_dim()
+    } else {
+        Style::new().dim()
+    };
+
     let message_list = List::new(padded_items)
         .direction(ListDirection::TopToBottom)
         .block(
@@ -130,7 +144,7 @@ fn build_messages_widget(
                 .borders(Borders::ALL)
                 .border_style(Style::new().dim())
                 .title(title)
-                .title_style(onboarding_style),
+                .title_style(title_style),
         );
     message_list
 }
@@ -138,7 +152,7 @@ fn build_messages_widget(
 fn build_users_widget(
     app_user_uuid: String,
     users: &Vec<(String, String)>,
-    onboarding_style: Style,
+    onboarding: Onboarding,
 ) -> Table {
     let mut rows: Vec<Row> = vec![];
     for (uuid, username) in users {
@@ -152,6 +166,14 @@ fn build_users_widget(
         rows.push(row);
     }
     let widths = [Constraint::Fill(1)];
+
+    // dim title if user has not finished onboarding
+    let title_style = if onboarding == Onboarding::Completed {
+        Style::new().not_dim()
+    } else {
+        Style::new().dim()
+    };
+
     let table = Table::new(rows, widths)
         .column_spacing(1)
         .flex(layout::Flex::Legacy)
@@ -160,15 +182,23 @@ fn build_users_widget(
                 .borders(Borders::ALL)
                 .border_style(Style::new().dim())
                 .title(" Users ")
-                .title_style(onboarding_style),
+                .title_style(title_style),
         );
 
     table
 }
 
 #[allow(dead_code)]
-fn build_logs_widget(area: Rect, logs: &Vec<String>, onboarding_style: Style) -> List {
+fn build_logs_widget(area: Rect, logs: &Vec<String>, onboarding: Onboarding) -> List {
     let log_items = build_list_items(area, logs, 2, json_formatter);
+
+    // dim title if user has not finished onboarding
+    let title_style = if onboarding == Onboarding::Completed {
+        Style::new().not_dim()
+    } else {
+        Style::new().dim()
+    };
+
     let log_list = List::new(log_items)
         .direction(ListDirection::TopToBottom)
         .block(
@@ -176,7 +206,7 @@ fn build_logs_widget(area: Rect, logs: &Vec<String>, onboarding_style: Style) ->
                 .borders(Borders::ALL)
                 .border_style(Style::new().dim())
                 .title(" Logs ")
-                .title_style(onboarding_style),
+                .title_style(title_style),
         );
     log_list
 }
@@ -201,7 +231,7 @@ fn build_input_widget(app: &AppState) -> (Paragraph, u16) {
             Paragraph::new(line)
         }
         Onboarding::ConfirmingUsername => {
-            // dim the input if input is still the generated username
+            // dim the input text if input is still the generated username
             let style = if app.input == app.user.username {
                 Style::new().italic().dim()
             } else {
@@ -228,7 +258,17 @@ fn build_input_widget(app: &AppState) -> (Paragraph, u16) {
         }
     };
 
-    let input_block = input_paragraph.block(Block::default().borders(Borders::ALL));
+    let border_style = if app.ui_focus_area == Focus::Input {
+        Style::new().not_dim()
+    } else {
+        Style::new().dim()
+    };
+
+    let input_block = input_paragraph.block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(border_style),
+    );
 
     (input_block, input_width)
 }

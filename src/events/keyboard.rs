@@ -1,31 +1,38 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use log::{debug, error};
 
-use crate::app::{is_blank, AppState, Onboarding};
+use crate::app::{is_blank, AppState, Focus, Onboarding};
 use crate::names::{generate_room_name, generate_username};
 use crate::socket::client;
 
+#[derive(Debug, Default)]
 enum Command {
-    ChangeUsername,
     Help,
-    JoinRoom,
+    ChangeUsername,
+    SwitchRoomsFromInput,
+    SwitchRoomsFromSelected,
+    #[default]
     Unknown,
 }
 
+#[derive(Debug, Default)]
 enum KeyAction {
     AppendInputChar(char),
     ClearInput,
     ConfirmRoomName,
     ConfirmUsernameAndJoin,
+    CycleFocus,
     DeleteLastInputChar,
     QuitApp,
-    SelectRoom,
+    SelectNextRoom,
+    SelectPrevRoom,
     SetInputToRandomRoom,
     SetInputToRandomUsername,
     SubmitCommand(Command),
     SubmitMessage,
     ToggleSidebar,
-    Unknown,
+    #[default]
+    Ignore,
 }
 
 pub fn handle_key_event(
@@ -39,15 +46,17 @@ pub fn handle_key_event(
         KeyAction::ClearInput => app.input.clear(),
         KeyAction::ConfirmRoomName => handle_confirm_room_name(app),
         KeyAction::ConfirmUsernameAndJoin => handle_confirm_username_and_join(app, handle),
+        KeyAction::CycleFocus => app.cycle_focus(),
         KeyAction::DeleteLastInputChar => handle_delete_last_input_char(app),
-        KeyAction::QuitApp => return Ok(true),
-        KeyAction::SelectRoom => app.select_next_room(),
+        KeyAction::QuitApp => return Ok(true), // TODO: app.quit(),
+        KeyAction::SelectNextRoom => app.select_next_room(),
+        KeyAction::SelectPrevRoom => app.select_prev_room(),
         KeyAction::SetInputToRandomRoom => set_input_to_random_room(app),
         KeyAction::SetInputToRandomUsername => set_input_to_random_username(app),
         KeyAction::SubmitCommand(command) => handle_command(command, app, handle),
         KeyAction::SubmitMessage => handle_submit_message(app, handle),
         KeyAction::ToggleSidebar => app.toggle_sidebar(),
-        KeyAction::Unknown => (),
+        KeyAction::Ignore => (),
     }
 
     Ok(false)
@@ -67,6 +76,26 @@ fn parse_key_action(app: &mut AppState, key: KeyEvent) -> KeyAction {
         }
     }
 
+    if key.code == KeyCode::Tab {
+        return if app.onboarding == Onboarding::Completed {
+            KeyAction::CycleFocus
+        } else {
+            KeyAction::Ignore
+        };
+    }
+
+    if app.ui_focus_area == Focus::Rooms {
+        return if key.code == KeyCode::Enter {
+            KeyAction::SubmitCommand(Command::SwitchRoomsFromSelected)
+        } else if key.code == KeyCode::Up {
+            KeyAction::SelectPrevRoom
+        } else if key.code == KeyCode::Down {
+            KeyAction::SelectNextRoom
+        } else {
+            KeyAction::Ignore
+        };
+    }
+
     if key.code == KeyCode::Backspace {
         if should_clear_all_input(app) {
             return KeyAction::ClearInput;
@@ -81,7 +110,7 @@ fn parse_key_action(app: &mut AppState, key: KeyEvent) -> KeyAction {
                 if app.input.starts_with("/help") {
                     KeyAction::SubmitCommand(Command::Help)
                 } else if app.input.starts_with("/join") {
-                    KeyAction::SubmitCommand(Command::JoinRoom)
+                    KeyAction::SubmitCommand(Command::SwitchRoomsFromInput)
                 } else if app.input.starts_with("/quit") {
                     KeyAction::QuitApp
                 } else if app.input.starts_with("/username") {
@@ -105,10 +134,7 @@ fn parse_key_action(app: &mut AppState, key: KeyEvent) -> KeyAction {
         return match app.onboarding {
             Onboarding::ConfirmingUsername => KeyAction::SetInputToRandomUsername,
             Onboarding::ConfirmingRoomName => KeyAction::SetInputToRandomRoom,
-            Onboarding::Completed => {
-                // TODO: only SelectRoom if AreaFocus is on the room list
-                KeyAction::SelectRoom
-            }
+            Onboarding::Completed => KeyAction::Ignore,
         };
     }
 
@@ -116,7 +142,7 @@ fn parse_key_action(app: &mut AppState, key: KeyEvent) -> KeyAction {
         return KeyAction::AppendInputChar(c);
     }
 
-    KeyAction::Unknown
+    KeyAction::Ignore
 }
 
 fn is_quit_key(key: KeyEvent) -> bool {
@@ -183,23 +209,45 @@ fn handle_command(
         Command::Help => {
             // TODO: show help
         }
-        Command::JoinRoom => {
-            let prefix = "/join";
-            let room = app.input.trim()[prefix.len()..].to_string();
-            if !is_blank(&room) {
+        Command::SwitchRoomsFromInput => {
+            // Note: similar logic to SwitchRoomsFromSelected, except:
+            // - use room from input
+            // - clear input
+            let prefix = "/join ";
+            let new_room = app.input.trim()[prefix.len()..].to_string();
+            if !is_blank(&new_room) && new_room != app.room {
                 app.input.clear();
-                let new_room = room.trim().to_string();
-
                 let leave_request = app.leave_request();
                 debug!("sending leave request={:?}", leave_request);
                 match handle.call(leave_request) {
                     Ok(_) => {
                         let join_request = app.join_new_room_request(new_room.clone());
                         handle.call(join_request).expect("join error");
-
                         app.room = new_room;
+                        app.set_selected_to_current_room();
                     }
                     Err(error) => error!("leave error: {:?}", error),
+                }
+            }
+        }
+        Command::SwitchRoomsFromSelected => {
+            // Note: similar logic to SwitchRoomsFromInput, except:
+            // - use room selected in rooms list without clearing input
+            // - change focus after join
+            if let Some(new_room) = app.get_selected_room_name() {
+                if new_room != app.room {
+                    let leave_request = app.leave_request();
+                    debug!("sending leave request={:?}", leave_request);
+                    match handle.call(leave_request) {
+                        Ok(_) => {
+                            let join_request = app.join_new_room_request(new_room.clone());
+                            handle.call(join_request).expect("join error");
+                            app.room = new_room;
+                            app.set_selected_to_current_room();
+                            app.ui_focus_area = Focus::Input;
+                        }
+                        Err(error) => error!("leave error: {:?}", error),
+                    }
                 }
             }
         }
