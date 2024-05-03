@@ -6,9 +6,7 @@ use crate::app::{AppState, Onboarding, Sidebar};
 
 #[allow(unused_variables)]
 pub fn render(frame: &mut Frame, app: &mut AppState) {
-    let AppState {
-        user, input, users, ..
-    } = app;
+    let AppState { user, input, .. } = app;
     let (rooms_width, messages_width, sidebar_width) = match app.sidebar {
         Sidebar::Users => (25, 55, 20),
         Sidebar::Logs => (25, 40, 35),

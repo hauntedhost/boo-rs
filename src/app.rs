@@ -26,16 +26,15 @@ pub enum Onboarding {
 #[derive(Debug)]
 pub struct AppState {
     pub user: User,
-    // TODO: store users as a HashMap<String, User> to allow for quick adds and removes
-    pub users: Vec<User>,
     pub room: String,
     pub room_table_state: TableState,
-    // TODO: store rooms as a HashMap<String, User> to allow for quick adds and removes
-    pub rooms: Vec<Room>,
-    pub messages: Vec<String>,
     pub input: String,
     pub sidebar: Sidebar,
     pub onboarding: Onboarding,
+    messages: Vec<String>,
+    // TODO: store users and rooms as HashMap<String, User/Room> to allow for quick adds and removes
+    rooms: Vec<Room>,
+    users: Vec<User>,
     logs: Vec<String>,
     logs_enabled: bool,
 }
@@ -68,6 +67,8 @@ impl AppState {
         Self::default()
     }
 
+    // onboarding
+
     pub fn advance_onboarding(&mut self) {
         match self.onboarding {
             Onboarding::ConfirmingRoomName => {
@@ -84,6 +85,8 @@ impl AppState {
         };
     }
 
+    // input
+
     pub fn input_is_valid_message(&self) -> bool {
         !self.input_is_blank()
     }
@@ -92,23 +95,30 @@ impl AppState {
         is_blank(&self.input)
     }
 
-    pub fn get_room_index(&self) -> Option<usize> {
-        self.rooms.iter().position(|room| room.name == self.room)
+    // rooms
+
+    pub fn get_rooms(&self) -> Vec<Room> {
+        self.get_rooms_sorted()
     }
 
-    #[allow(dead_code)]
-    pub fn get_rooms_sorted(&self) -> Vec<Room> {
-        let mut rooms = self.rooms.clone();
-        rooms.sort_by_key(|room| (!room.name.eq(&self.room), room.name.clone()));
-        rooms
+    pub fn set_rooms(&mut self, rooms: Vec<Room>) {
+        self.rooms = rooms;
     }
 
     pub fn get_rooms_with_counts(&self) -> Vec<(String, u32)> {
-        self.rooms
+        self.get_rooms()
             .iter()
             .map(|room| (room.name.clone(), room.user_count))
             .collect()
     }
+
+    pub fn get_room_index(&self) -> Option<usize> {
+        self.get_rooms()
+            .iter()
+            .position(|room| room.name == self.room)
+    }
+
+    // users
 
     pub fn add_user(&mut self, user: User) {
         if !self.users.iter().any(|u| u.uuid == user.uuid) {
@@ -116,13 +126,36 @@ impl AppState {
         }
     }
 
+    pub fn get_users(&self) -> Vec<User> {
+        self.get_users_sorted()
+    }
+
+    pub fn get_uuid_username_pairs(&self) -> Vec<(String, String)> {
+        self.get_users()
+            .iter()
+            .map(|u| (u.uuid.clone(), u.username.clone()))
+            .collect()
+    }
+
     pub fn remove_user(&mut self, user: User) {
         self.users.retain(|u| u.uuid != user.uuid);
     }
 
+    pub fn set_users(&mut self, users: Vec<User>) {
+        self.users = users;
+    }
+
+    // messages
+
     pub fn get_messages(&self) -> Vec<String> {
         self.messages.clone()
     }
+
+    pub fn add_message(&mut self, message: String) {
+        self.messages.push(message);
+    }
+
+    // logs
 
     pub fn get_logs(&self) -> Vec<String> {
         self.logs.clone()
@@ -141,15 +174,8 @@ impl AppState {
         };
     }
 
-    // Return a vector of (uuid, username) pairs
-    pub fn get_uuid_username_pairs(&self) -> Vec<(String, String)> {
-        self.users
-            .iter()
-            .map(|u| (u.uuid.clone(), u.username.clone()))
-            .collect()
-    }
+    // requests
 
-    // Build a join request
     pub fn join_request(&mut self) -> Request {
         Request::join(self.room.clone(), self.user.clone())
     }
@@ -162,9 +188,22 @@ impl AppState {
         Request::leave(self.room.clone(), self.user.clone())
     }
 
-    // Build a shout request
     pub fn shout_request(&mut self, message: String) -> Request {
         Request::shout(self.room.clone(), message, self.user.clone())
+    }
+
+    // private
+
+    fn get_users_sorted(&self) -> Vec<User> {
+        let mut users = self.users.clone();
+        users.sort_by_key(|user| user.username.clone());
+        users
+    }
+
+    fn get_rooms_sorted(&self) -> Vec<Room> {
+        let mut rooms = self.rooms.clone();
+        rooms.sort_by_key(|room| (!room.name.eq(&self.room), room.name.clone()));
+        rooms
     }
 }
 

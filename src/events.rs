@@ -30,27 +30,27 @@ pub fn handle_events(
                 Response::Shout(shout) => {
                     if !shout.user.uuid.eq(&app.user.uuid) {
                         let message = format!("{}: {}", shout.user.username, shout.message);
-                        app.messages.push(message);
+                        app.add_message(message);
                     }
                 }
                 Response::RoomsUpdate(rooms) => {
-                    app.rooms = rooms;
+                    app.set_rooms(rooms);
                 }
                 Response::PresenceDiff(diff) => {
                     for user in diff.joins {
                         let message = format!("{} has joined {}", user.username, app.room);
                         app.add_user(user);
-                        app.messages.push(message);
+                        app.add_message(message);
                     }
 
                     for user in diff.leaves {
                         let message = format!("{} has left {}", user.username, app.room);
                         app.remove_user(user);
-                        app.messages.push(message);
+                        app.add_message(message);
                     }
                 }
                 Response::PresenceState(state) => {
-                    app.users = state.users;
+                    app.set_users(state.users);
                 }
             }
         }
@@ -150,7 +150,7 @@ pub fn handle_events(
 
                         // Handle normal messages
                         let local_message = format!("{}: {}", &app.user.username, app.input);
-                        app.messages.push(local_message);
+                        app.add_message(local_message);
 
                         // send shout request
                         let message = app.input.clone();
