@@ -194,23 +194,23 @@ impl AppState {
     // requests
 
     pub fn heartbeat_request(&mut self) -> Request {
-        Request::heartbeat(self.user.clone())
+        Request::new_heartbeat()
     }
 
     pub fn join_request(&mut self) -> Request {
-        Request::join(self.room.clone(), self.user.clone())
+        Request::new_join(self.room.clone(), self.user.clone())
     }
 
-    pub fn join_new_request(&mut self, new_room: String) -> Request {
-        Request::join(new_room, self.user.clone())
+    pub fn join_new_room_request(&mut self, new_room: String) -> Request {
+        Request::new_join(new_room, self.user.clone())
     }
 
     pub fn leave_request(&mut self) -> Request {
-        Request::leave(self.room.clone(), self.user.clone())
+        Request::new_leave(self.room.clone())
     }
 
     pub fn shout_request(&mut self, message: String) -> Request {
-        Request::shout(self.room.clone(), message, self.user.clone())
+        Request::new_shout(self.room.clone(), message)
     }
 
     // private

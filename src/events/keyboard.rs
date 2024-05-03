@@ -72,7 +72,7 @@ fn handle_command(
             debug!("sending leave request={:?}", leave_request);
             match handle.call(leave_request) {
                 Ok(_) => {
-                    let join_request = app.join_new_request(new_room.clone());
+                    let join_request = app.join_new_room_request(new_room.clone());
                     handle.call(join_request).expect("join error");
 
                     app.room = new_room;

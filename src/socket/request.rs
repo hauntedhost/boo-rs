@@ -9,87 +9,57 @@ use crate::socket::message::Message;
 const TOPIC_PREFIX: &str = "relay:";
 
 #[derive(Debug)]
-enum Event {
-    Heartbeat,
-    // TODO: rewrite as Join(User) and remove user requirement from Request struct
-    Join,
-    Leave,
-    Shout(String),
-}
-
-#[derive(Debug)]
 pub struct Request {
-    user: User,
     topic: String,
-    event: Event,
+    event: String,
+    payload: SerdeValue,
 }
 
 impl Request {
-    pub fn heartbeat(user: User) -> Self {
+    pub fn new_heartbeat() -> Self {
         Self {
-            event: Event::Heartbeat,
             topic: "phoenix".to_string(),
-            user,
+            event: "heartbeat".to_string(),
+            payload: json!({}),
         }
     }
 
-    pub fn join(room: String, user: User) -> Self {
+    pub fn new_join(room: String, user: User) -> Self {
         Self {
-            event: Event::Join,
             topic: room_to_topic(room),
-            user,
+            event: "phx_join".to_string(),
+            payload: json!({ "user": user  }),
         }
     }
 
-    pub fn leave(room: String, user: User) -> Self {
+    pub fn new_leave(room: String) -> Self {
         Self {
-            event: Event::Leave,
             topic: room_to_topic(room),
-            user,
+            event: "phx_leave".to_string(),
+            payload: json!({}),
         }
     }
 
-    pub fn shout(room: String, message: String, user: User) -> Self {
+    pub fn new_shout(room: String, message: String) -> Self {
         Self {
-            event: Event::Shout(message),
             topic: room_to_topic(room),
-            user,
+            event: "shout".to_string(),
+            payload: json!({  "message": message }),
         }
     }
 
     pub fn to_payload(&self, refs: Refs) -> String {
-        let event = self.event();
-        let payload = self.payload();
-
         let message = Message {
             join_ref: Some(refs.get_join_ref()),
             message_ref: Some(refs.get_message_ref()),
             topic: self.topic.clone(),
-            event,
-            payload,
+            event: self.event.clone(),
+            payload: self.payload.clone(),
         };
 
         message
             .serialize_request()
             .expect("Problem serializing message")
-    }
-
-    fn event(&self) -> String {
-        match self.event {
-            Event::Heartbeat => "heartbeat".to_string(),
-            Event::Join => "phx_join".to_string(),
-            Event::Leave => "phx_leave".to_string(),
-            Event::Shout(_) => "shout".to_string(),
-        }
-    }
-
-    fn payload(&self) -> SerdeValue {
-        match &self.event {
-            Event::Heartbeat => json!({}),
-            Event::Join => json!({ "user": self.user  }),
-            Event::Leave => json!({}),
-            Event::Shout(message) => json!({ "user": self.user, "message": message }),
-        }
     }
 }
 
