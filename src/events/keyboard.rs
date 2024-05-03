@@ -7,7 +7,6 @@ use crate::socket::client;
 
 #[derive(Debug, Default)]
 enum Command {
-    Help,
     ChangeUsername,
     SwitchRoomsFromInput,
     SwitchRoomsFromSelected,
@@ -30,6 +29,7 @@ enum KeyAction {
     SetInputToRandomUsername,
     SubmitCommand(Command),
     SubmitMessage,
+    ToggleHelp,
     ToggleSidebar,
     #[default]
     Ignore,
@@ -54,6 +54,7 @@ pub fn handle_key_event(
         KeyAction::SetInputToRandomUsername => set_input_to_random_username(app),
         KeyAction::SubmitCommand(command) => handle_command(command, app, handle),
         KeyAction::SubmitMessage => handle_submit_message(app, handle),
+        KeyAction::ToggleHelp => app.toggle_show_help(),
         KeyAction::ToggleSidebar => app.toggle_sidebar(),
         KeyAction::Ignore => (),
     }
@@ -62,15 +63,24 @@ pub fn handle_key_event(
 // KeyAction parsing
 
 fn parse_key_action(app: &mut AppState, key: KeyEvent) -> KeyAction {
+    // Any key exits help
+    if app.should_show_help() {
+        return KeyAction::ToggleHelp;
+    }
+
     if is_quit_key(key) {
         return KeyAction::QuitApp;
     }
 
     // Option + key actions
-    if is_option_key(key) {
-        if is_toggle_sidebar_key(key) {
-            return KeyAction::ToggleSidebar;
-        }
+    if key.modifiers.contains(KeyModifiers::ALT) {
+        return if key.code == KeyCode::Char('h') {
+            KeyAction::ToggleHelp
+        } else if key.code == KeyCode::Char('s') {
+            KeyAction::ToggleSidebar
+        } else {
+            KeyAction::Ignore
+        };
     }
 
     if key.code == KeyCode::Tab {
@@ -84,9 +94,9 @@ fn parse_key_action(app: &mut AppState, key: KeyEvent) -> KeyAction {
     if app.ui_focus_area == Focus::Rooms {
         return if key.code == KeyCode::Enter {
             KeyAction::SubmitCommand(Command::SwitchRoomsFromSelected)
-        } else if key.code == KeyCode::Up {
+        } else if key.code == KeyCode::Up || key.code == KeyCode::Char('k') {
             KeyAction::SelectPrevRoom
-        } else if key.code == KeyCode::Down {
+        } else if key.code == KeyCode::Down || key.code == KeyCode::Char('j') {
             KeyAction::SelectNextRoom
         } else {
             KeyAction::Ignore
@@ -104,8 +114,8 @@ fn parse_key_action(app: &mut AppState, key: KeyEvent) -> KeyAction {
     if key.code == KeyCode::Enter {
         if app.input.starts_with("/") {
             return if app.onboarding == Onboarding::Completed {
-                if app.input.starts_with("/help") {
-                    KeyAction::SubmitCommand(Command::Help)
+                if app.input.starts_with("/help") || app.input.starts_with("/?") {
+                    KeyAction::ToggleHelp
                 } else if app.input.starts_with("/join") {
                     KeyAction::SubmitCommand(Command::SwitchRoomsFromInput)
                 } else if app.input.starts_with("/quit") {
@@ -145,14 +155,6 @@ fn parse_key_action(app: &mut AppState, key: KeyEvent) -> KeyAction {
 fn is_quit_key(key: KeyEvent) -> bool {
     key.code == KeyCode::Esc
         || (key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c'))
-}
-
-fn is_option_key(key: KeyEvent) -> bool {
-    key.modifiers.contains(KeyModifiers::ALT)
-}
-
-fn is_toggle_sidebar_key(key: KeyEvent) -> bool {
-    is_option_key(key) && key.code == KeyCode::Char('s')
 }
 
 fn is_up_or_down_key(key: KeyEvent) -> bool {
@@ -202,9 +204,6 @@ fn handle_command(
             //   1. push this message uniquely, e.g. "user x has changed their name to y"
             //   2. the server needs to handle the change too
             //   3. the rx.try_recv() also has to handle the name change broadcast
-        }
-        Command::Help => {
-            // TODO: show help
         }
         Command::SwitchRoomsFromInput => {
             // Note: similar logic to SwitchRoomsFromSelected, except:

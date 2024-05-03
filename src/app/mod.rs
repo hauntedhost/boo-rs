@@ -56,6 +56,7 @@ pub struct AppState {
     messages: Vec<String>,
     logging_enabled: bool,
     should_quit: bool,
+    should_show_help: bool,
 }
 
 impl Default for AppState {
@@ -75,6 +76,7 @@ impl Default for AppState {
             room: room.clone(),
             rooms: Vec::new(),
             should_quit: false,
+            should_show_help: false,
             ui_focus_area: Focus::default(),
             ui_room_table_state: TableState::default(),
             ui_selected_room_index: None,
@@ -164,6 +166,18 @@ impl AppState {
             Focus::Input => Focus::Rooms,
             Focus::Rooms => Focus::Input,
         };
+    }
+
+    pub fn should_show_help(&self) -> bool {
+        self.should_show_help
+    }
+
+    pub fn toggle_show_help(&mut self) {
+        if self.should_show_help {
+            self.should_show_help = false;
+        } else {
+            self.should_show_help = true;
+        }
     }
 
     pub fn toggle_sidebar(&mut self) {

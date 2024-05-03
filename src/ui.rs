@@ -7,6 +7,52 @@ use crate::app::{AppState, Focus, Onboarding, Sidebar};
 #[allow(unused_variables)]
 pub fn render(frame: &mut Frame, app: &mut AppState) {
     let AppState { user, input, .. } = app;
+
+    if app.should_show_help() {
+        let layout = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints(vec![Constraint::Percentage(100)])
+            .split(frame.size());
+
+        let help_area = layout[0];
+
+        let items = vec![
+            "Keyboard Shortcuts",
+            "  Esc: Quit the application",
+            "  Tab: Cycle focus from input to rooms",
+            "  Alt + h: Show this help message",
+            "  Alt + s: Toggle right sidebar view",
+            "",
+            "Commands",
+            "  /?: Show this help message",
+            "  /help: Show this help message",
+            "  /join: Join a room",
+            "  /quit: Quit the application",
+            "",
+            "Press any key to close this help message",
+        ];
+
+        let max_line_length = (items.iter().map(|line| line.len()).max().unwrap_or(0) + 2) as u16;
+        let available_padding_x = help_area.width.checked_sub(max_line_length).unwrap_or(0);
+        let padding_x = if available_padding_x >= 2 {
+            available_padding_x / 2
+        } else {
+            0
+        };
+
+        let help_widget = List::new(items).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Help ")
+                .title_alignment(Alignment::Center)
+                .padding(Padding::symmetric(padding_x, 1)),
+        );
+
+        frame.render_widget(help_widget, help_area);
+
+        return ();
+    }
+
     let (rooms_width, messages_width, sidebar_width) = match app.ui_sidebar_view {
         Sidebar::Users => (25, 55, 20),
         Sidebar::Logs => (25, 40, 35),
