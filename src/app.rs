@@ -1,12 +1,12 @@
+use ratatui::widgets::TableState;
 use std::env;
 
-use ratatui::widgets::TableState;
-
-/// This module contains the AppState struct used to store the state of the application.
 use crate::names::generate_room_name;
 use crate::request::Request;
 use crate::room::Room;
 use crate::user::User;
+
+/// This module contains the AppState struct used to store the state of the application.
 
 #[derive(Debug, Default)]
 pub enum Sidebar {
@@ -89,7 +89,7 @@ impl AppState {
     }
 
     pub fn input_is_blank(&self) -> bool {
-        self.input.chars().all(char::is_whitespace)
+        is_blank(&self.input)
     }
 
     pub fn get_room_index(&self) -> Option<usize> {
@@ -154,10 +154,22 @@ impl AppState {
         Request::join(self.room.clone(), self.user.clone())
     }
 
+    pub fn join_new_request(&mut self, new_room: String) -> Request {
+        Request::join(new_room, self.user.clone())
+    }
+
+    pub fn leave_request(&mut self) -> Request {
+        Request::leave(self.room.clone(), self.user.clone())
+    }
+
     // Build a shout request
     pub fn shout_request(&mut self, message: String) -> Request {
         Request::shout(self.room.clone(), message, self.user.clone())
     }
+}
+
+pub fn is_blank(s: &str) -> bool {
+    s.chars().all(char::is_whitespace)
 }
 
 // Get room name from ROOM env var, otherwise generate a room name

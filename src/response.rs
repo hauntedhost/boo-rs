@@ -1,11 +1,12 @@
-/// This module contains logic for parsing JSON from the server.
-/// It exposes a single `parse_response` fn which takes a JSON string and returns a `Response` enum.
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::message::Message;
 use crate::room::Room;
 use crate::user::User;
+
+/// This module contains logic for parsing JSON from the server.
+/// It exposes a single `parse_response` fn which takes a JSON string and returns a `Response` enum.
 
 // The response enum we will build based on the event type
 #[derive(Default, Debug)]

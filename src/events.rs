@@ -1,8 +1,8 @@
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
-use log::debug;
-use tokio::sync::mpsc::Receiver;
+use log::{debug, error, info};
+use tokio::sync::mpsc::{self, Receiver};
 
-use crate::app::{AppState, Onboarding};
+use crate::app::{is_blank, AppState, Onboarding};
 use crate::client;
 use crate::names::{generate_room_name, generate_username};
 use crate::response::{parse_response, Response};
@@ -38,13 +38,13 @@ pub fn handle_events(
                 }
                 Response::PresenceDiff(diff) => {
                     for user in diff.joins {
-                        let message = format!("{} has joined the chat!", user.username);
+                        let message = format!("{} has joined {}", user.username, app.room);
                         app.add_user(user);
                         app.messages.push(message);
                     }
 
                     for user in diff.leaves {
-                        let message = format!("{} has left the chat!", user.username);
+                        let message = format!("{} has left {}", user.username, app.room);
                         app.remove_user(user);
                         app.messages.push(message);
                     }
@@ -54,12 +54,8 @@ pub fn handle_events(
                 }
             }
         }
-        Err(tokio::sync::mpsc::error::TryRecvError::Empty) => {
-            // No messages, do nothing
-        }
-        Err(_e) => {
-            // Error, do nothing for now
-        }
+        Err(mpsc::error::TryRecvError::Empty) => (),
+        Err(error) => error!("rx.try_recv error: {:?}", error),
     }
 
     if event::poll(std::time::Duration::from_millis(50))? {
@@ -92,7 +88,7 @@ pub fn handle_events(
             }
 
             if key.code == KeyCode::Enter {
-                // Ignore empty messages
+                // ignore empty messages
                 if !app.input_is_valid_message() {
                     return Ok(false);
                 }
@@ -115,6 +111,43 @@ pub fn handle_events(
                         app.advance_onboarding();
                     }
                     Onboarding::Completed => {
+                        // handle join command
+                        if app.input.starts_with("/join") {
+                            let prefix = "/join";
+                            let room = app.input.trim()[prefix.len()..].to_string();
+                            if !is_blank(&room) {
+                                app.input.clear();
+                                let new_room = room.trim().to_string();
+
+                                let leave_request = app.leave_request();
+                                info!("sending leave request={:?}", leave_request);
+                                match handle.call(leave_request) {
+                                    Ok(_) => {
+                                        let join_request = app.join_new_request(new_room.clone());
+                                        handle.call(join_request).expect("join error");
+
+                                        app.room = new_room;
+                                    }
+                                    Err(error) => error!("leave error: {:?}", error),
+                                }
+                            }
+                            return Ok(false);
+                        }
+
+                        // TODO: handle /username change
+                        //   1. push this message uniquely, e.g. "user x has changed their name to y"
+                        //   2. the server needs to handle the change too
+                        //   3. the rx.try_recv() also has to handle the name change broadcast
+                        // if input.starts_with("/username") {
+                        //     let prefix = "/username";
+                        //     let new_username = &input.trim()[prefix.len()..];
+                        //     if !new_username.is_empty() {
+                        //         *username = new_username.trim().to_string();
+                        //     } else {
+                        //         return Ok(false);
+                        //     }
+                        // }
+
                         // Handle normal messages
                         let local_message = format!("{}: {}", &app.user.username, app.input);
                         app.messages.push(local_message);
@@ -130,20 +163,6 @@ pub fn handle_events(
                 }
 
                 return Ok(false);
-
-                // TODO: fix username change logic
-                //   1. push this message uniquely, e.g. "user x has changed their name to y"
-                //   2. the server needs to handle the change too
-                //   3. the rx.try_recv() also has to handle the name change broadcast
-                // if input.starts_with("/username") {
-                //     let prefix = "/username";
-                //     let new_username = &input.trim()[prefix.len()..];
-                //     if !new_username.is_empty() {
-                //         *username = new_username.trim().to_string();
-                //     } else {
-                //         return Ok(false);
-                //     }
-                // }
             } else if key.code == KeyCode::Backspace {
                 // if confirming username and input is the username, clear entire input on backspace
                 if app.onboarding == Onboarding::ConfirmingUsername

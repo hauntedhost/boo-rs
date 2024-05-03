@@ -1,11 +1,12 @@
+use serde_json::{Result as SerdeResult, Value as SerdeValue};
+
 /// This module contains the `Message` struct with implementation logic for:
 ///   - Parsing JSON from the server into the `Message` struct
 ///   - Serializing the `Message` struct into a JSON payload
-use serde_json::{Result as SerdeResult, Value as SerdeValue};
 
 #[derive(Default, Debug)]
 pub struct Message {
-    pub join_ref: Option<usize>,
+    pub join_ref: Option<String>,
     pub message_ref: Option<usize>,
     pub topic: String,
     pub event: String,
@@ -30,7 +31,7 @@ impl Message {
     // Serialize Message struct into JSON payload
     pub fn serialize_request(&self) -> SerdeResult<String> {
         let message_array: MessageArray = (
-            self.join_ref,
+            self.join_ref.clone(),
             self.message_ref,
             self.topic.clone(),
             self.event.clone(),
@@ -43,9 +44,9 @@ impl Message {
 
 // The server sends and receives messages as a 5-element JSON array:
 type MessageArray = (
-    Option<usize>, // join_ref
-    Option<usize>, // message_ref
-    String,        // topic
-    String,        // event
-    SerdeValue,    // payload
+    Option<String>, // join_ref
+    Option<usize>,  // message_ref
+    String,         // topic
+    String,         // event
+    SerdeValue,     // payload
 );

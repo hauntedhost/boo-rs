@@ -1,8 +1,7 @@
-use std::env;
-
 use chrono::Local;
 use fern::Dispatch;
 use log::LevelFilter;
+use std::env;
 
 const DEFAULT_LEVEL: LevelFilter = LevelFilter::Warn;
 

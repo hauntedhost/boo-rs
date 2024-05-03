@@ -1,29 +1,31 @@
-/// This module contains the `Client` struct and ezsockets client implementation.
-/// It handles internal calls and relays messages to the server.
 use async_trait::async_trait;
-use log::{error, info};
+use log::{debug, error, info};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use tokio::sync::mpsc;
+use uuid::Uuid;
 
 use crate::request::Request;
 
+/// This module contains the `Client` struct and ezsockets client implementation.
+/// It handles internal calls and relays messages to the server.
+
 pub struct Refs {
-    join_ref: AtomicUsize,
+    join_ref: String,
     message_ref: AtomicUsize,
 }
 
 impl Default for Refs {
     fn default() -> Self {
         Self {
-            join_ref: AtomicUsize::new(1),
+            join_ref: Uuid::new_v4().to_string()[..8].to_owned(),
             message_ref: AtomicUsize::new(1),
         }
     }
 }
 
 impl Refs {
-    pub fn get_join_ref(&self) -> usize {
-        self.join_ref.load(Ordering::SeqCst)
+    pub fn get_join_ref(&self) -> String {
+        self.join_ref.clone()
     }
 
     pub fn get_message_ref(&self) -> usize {
@@ -47,11 +49,10 @@ impl Client {
     }
 
     pub fn next_refs(&self) -> Refs {
-        let new_join_ref = self.refs.join_ref.fetch_add(1, Ordering::SeqCst);
         let new_message_ref = self.refs.message_ref.fetch_add(1, Ordering::SeqCst);
 
         Refs {
-            join_ref: AtomicUsize::new(new_join_ref + 1),
+            join_ref: self.refs.join_ref.clone(),
             message_ref: AtomicUsize::new(new_message_ref + 1),
         }
     }
@@ -76,6 +77,8 @@ impl ezsockets::ClientExt for Client {
 
     async fn on_call(&mut self, request: Request) -> Result<(), ezsockets::Error> {
         let request_payload = request.to_payload(self.next_refs());
+
+        debug!("sending request: {request_payload}");
 
         self.handle
             .text(request_payload)
