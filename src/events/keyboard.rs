@@ -48,7 +48,7 @@ pub fn handle_key_event(
         KeyAction::ConfirmUsernameAndJoin => handle_confirm_username_and_join(app, handle),
         KeyAction::CycleFocus => app.cycle_focus(),
         KeyAction::DeleteLastInputChar => handle_delete_last_input_char(app),
-        KeyAction::QuitApp => return Ok(true), // TODO: app.quit(),
+        KeyAction::QuitApp => app.quit(),
         KeyAction::SelectNextRoom => app.select_next_room(),
         KeyAction::SelectPrevRoom => app.select_prev_room(),
         KeyAction::SetInputToRandomRoom => set_input_to_random_room(app),

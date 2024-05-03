@@ -41,18 +41,21 @@ pub struct AppState {
     pub onboarding: Onboarding,
     pub room: String,
     pub user: User,
-    // TODO: store users and rooms as HashMap<String, User/Room> to allow for quick adds and removes
-    rooms: Vec<Room>,
-    users: Vec<User>,
     // TODO: nest ui state in a struct
     pub ui_room_table_state: TableState,
     pub ui_sidebar_view: Sidebar,
     pub ui_focus_area: Focus,
     ui_selected_room_index: Option<usize>,
+    // --
+    // TODO: store users and rooms as HashMap<String, User/Room> to allow for quick adds and removes
+    rooms: Vec<Room>,
+    users: Vec<User>,
+    // ---
     last_heartbeat: Instant,
     logs: Vec<String>,
-    logs_enabled: bool,
     messages: Vec<String>,
+    logging_enabled: bool,
+    should_quit: bool,
 }
 
 impl Default for AppState {
@@ -64,17 +67,18 @@ impl Default for AppState {
 
         AppState {
             input: initial_input,
+            logging_enabled: true,
             last_heartbeat: Instant::now(),
             logs: Vec::new(),
-            logs_enabled: true,
             messages: Vec::new(),
             onboarding: Onboarding::default(),
             room: room.clone(),
-            ui_room_table_state: TableState::default(),
-            ui_focus_area: Focus::default(),
-            ui_sidebar_view: Sidebar::default(),
             rooms: Vec::new(),
+            should_quit: false,
+            ui_focus_area: Focus::default(),
+            ui_room_table_state: TableState::default(),
             ui_selected_room_index: None,
+            ui_sidebar_view: Sidebar::default(),
             user: User::new_from_env_or_generate(),
             users: Vec::new(),
         }
@@ -94,6 +98,16 @@ impl AppState {
         } else {
             false
         }
+    }
+
+    // quitting app
+
+    pub fn should_quit(&self) -> bool {
+        self.should_quit
+    }
+
+    pub fn quit(&mut self) {
+        self.should_quit = true;
     }
 
     // onboarding
@@ -248,7 +262,7 @@ impl AppState {
     }
 
     pub fn append_log(&mut self, log: String) {
-        if self.logs_enabled {
+        if self.logging_enabled {
             self.logs.push(log);
         }
     }
