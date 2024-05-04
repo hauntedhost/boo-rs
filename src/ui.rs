@@ -6,6 +6,16 @@ use crate::app::{AppState, Focus, Onboarding, RightSidebar};
 
 /// This module contains all code for rendering the UI within the main app loop.
 
+// TODO: Retry emoji symbols after this bugfix: https://github.com/ratatui-org/ratatui/issues/1032
+// const CHAT_SYMBOL: &str = "👻";
+// const HASH_SYMBOL: &str = "ⵌ";
+// const LOG_SYMBOL: &str = "▤";
+// const SOCKET_SYMBOL: &str = "☰";
+const CHAT_SYMBOL: &str = "";
+const HASH_SYMBOL: &str = "#";
+const SOCKET_SYMBOL: &str = "=";
+const LOG_SYMBOL: &str = "=";
+
 #[allow(unused_variables)]
 pub fn render(frame: &mut Frame, app: &mut AppState) {
     let AppState { user, input, .. } = app;
@@ -170,9 +180,9 @@ fn build_info_widget(
         }
         Onboarding::ConfirmingRoom => {
             let room = if input == room { room } else { input };
-            (username, " ⵌ ".to_string(), room)
+            (username, format!(" {HASH_SYMBOL} "), room)
         }
-        Onboarding::Completed => (username, " ⵌ ".to_string(), room),
+        Onboarding::Completed => (username, format!(" {HASH_SYMBOL} "), room),
     };
 
     let row = Row::new(vec![
@@ -189,7 +199,10 @@ fn build_info_widget(
         ),
         Cell::from(
             Line::from(vec![
-                Span::styled("☰ ", Style::default().light_blue().bold()),
+                Span::styled(
+                    format!("{SOCKET_SYMBOL} "),
+                    Style::default().light_blue().bold(),
+                ),
                 Span::raw(socket_url),
             ])
             .alignment(Alignment::Right),
@@ -240,24 +253,27 @@ fn build_rooms_widget(rooms: &Vec<(String, u32)>, current_room: String, focus: F
             Block::default()
                 .borders(Borders::ALL)
                 .border_style(border_style)
-                .title(" ⵌ Rooms ")
+                .title(format!(" {HASH_SYMBOL} Rooms "))
                 .title_style(get_title_style()),
         )
 }
 
 fn build_messages_widget(area: Rect, _room: String, messages: &Vec<Message>) -> List {
-    let list_items = build_list_items(area, messages, 2, default_formatter);
+    let (list_items, line_count) = build_list_items(area, messages, 2, default_formatter);
 
-    // pad items to push chat to the bottom
-    let padded_items = pad_list(list_items.clone(), area.height - 2);
+    // padding to push chat to the bottom
+    let top_padding = (area.height - 2)
+        .checked_sub(line_count as u16)
+        .unwrap_or(0) as u16;
 
-    List::new(padded_items)
+    List::new(list_items)
         .direction(ListDirection::TopToBottom)
         .block(
             Block::default()
+                .padding(Padding::new(0, 0, top_padding, 0))
                 .borders(Borders::ALL)
                 .border_style(Style::new().dim())
-                .title(" 👻 Chat ")
+                .title(format!(" {CHAT_SYMBOL} Chat "))
                 .title_style(get_title_style()),
         )
 }
@@ -348,7 +364,7 @@ fn build_users_widget(app_user_uuid: String, users: &Vec<(String, String)>) -> T
 }
 
 fn build_logs_widget(area: Rect, logs: &Vec<String>) -> List {
-    let log_items = build_list_items(area, logs, 2, json_formatter);
+    let (log_items, _line_count) = build_list_items(area, logs, 2, json_formatter);
     let title_style = get_title_style();
 
     List::new(log_items)
@@ -357,7 +373,7 @@ fn build_logs_widget(area: Rect, logs: &Vec<String>) -> List {
             Block::default()
                 .borders(Borders::ALL)
                 .border_style(Style::new().dim())
-                .title(" ▤ Logs ")
+                .title(format!(" {LOG_SYMBOL} Logs "))
                 .title_style(title_style),
         )
 }
@@ -378,7 +394,7 @@ fn get_selection_style(a: &String, b: &String) -> Style {
 
 // Helpers
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum DisplayFormat {
     Plaintext,
     SystemMessage,
@@ -415,7 +431,12 @@ impl Displayable for Message {
     }
 }
 
-fn build_list_items<T, F>(area: Rect, all_items: &[T], padding: u16, formatter: F) -> Vec<ListItem>
+fn build_list_items<T, F>(
+    area: Rect,
+    all_items: &[T],
+    padding: u16,
+    formatter: F,
+) -> (Vec<ListItem>, usize)
 where
     T: Displayable,
     F: Fn(&String) -> String,
@@ -426,19 +447,45 @@ where
     for item in all_items.iter().rev() {
         let item_content = item.display().to_string();
         let item_style = match item.format() {
+            DisplayFormat::Plaintext => Style::default(),
             DisplayFormat::SystemMessage => Style::default().italic().dim(),
             DisplayFormat::UserMessage => Style::default(),
-            DisplayFormat::Plaintext => Style::default(),
         };
         let formatted_item = formatter(&item_content);
 
         // Wrap text to fit the area width
         let width = (area.width - padding) as usize;
         let wrapped_texts = textwrap::wrap(&formatted_item, width);
-        let lines = wrapped_texts
-            .iter()
-            .map(|s| Line::from(Span::raw(s.to_string())))
-            .collect::<Vec<_>>();
+        let lines = if item.format() == DisplayFormat::UserMessage {
+            // Highlight the username in user messages (very annoying code to handle text wrapping)
+            let style = Style::default().light_green();
+            let mut found_sep = false;
+            let mut lines: Vec<ratatui::text::Line<'_>> = Vec::new();
+            for text in wrapped_texts {
+                if found_sep {
+                    let line = Line::from(Span::raw(text.to_string()));
+                    lines.push(line);
+                    continue;
+                }
+
+                if let Some(index) = text.find(":") {
+                    found_sep = true;
+                    let username = text[..index].to_string();
+                    let message = text[index..].to_string();
+                    let line = Line::from(vec![Span::styled(username, style), Span::raw(message)]);
+                    lines.push(line);
+                } else {
+                    let line = Line::from(Span::styled(text.to_string(), style));
+                    lines.push(line);
+                }
+            }
+            lines
+        } else {
+            wrapped_texts
+                .iter()
+                .map(|s| Line::from(Span::raw(s.to_string())))
+                .collect::<Vec<_>>()
+        };
 
         // Only take as many lines as we can fit
         if line_count + lines.len() > max_lines {
@@ -458,7 +505,7 @@ where
     }
 
     items.reverse();
-    items
+    (items, line_count)
 }
 
 fn default_formatter(string: &String) -> String {
@@ -481,14 +528,4 @@ fn json_formatter(string: &String) -> String {
     let formatted_log = format!("=> {}", pretty_json.trim());
 
     formatted_log
-}
-
-fn pad_list(mut items: Vec<ListItem>, count: u16) -> Vec<ListItem> {
-    let count = count as usize;
-
-    while items.len() < count {
-        items.insert(0, ListItem::from(Text::from("")));
-    }
-
-    items
 }

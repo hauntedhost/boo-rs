@@ -146,6 +146,11 @@ fn parse_key_action(app: &mut AppState, key: KeyEvent) -> KeyAction {
     }
 
     if let KeyCode::Char(c) = key.code {
+        // ignore spaces in onboarding room and username input
+        if c == ' ' && app.onboarding != Onboarding::Completed {
+            return KeyAction::Ignore;
+        }
+
         return KeyAction::AppendInputChar(c);
     }
 
