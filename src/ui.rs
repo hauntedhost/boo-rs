@@ -1,6 +1,7 @@
 use ratatui::prelude::*;
 use ratatui::widgets::*;
 
+use crate::app::Message;
 use crate::app::{AppState, Focus, Onboarding, RightSidebar};
 
 /// This module contains all code for rendering the UI within the main app loop.
@@ -244,7 +245,7 @@ fn build_rooms_widget(rooms: &Vec<(String, u32)>, current_room: String, focus: F
         )
 }
 
-fn build_messages_widget(area: Rect, _room: String, messages: &Vec<String>) -> List {
+fn build_messages_widget(area: Rect, _room: String, messages: &Vec<Message>) -> List {
     let list_items = build_list_items(area, messages, 2, default_formatter);
 
     // pad items to push chat to the bottom
@@ -291,7 +292,7 @@ fn build_input_widget(app: &AppState) -> (Paragraph, u16) {
 
             let line = Line::from(vec![
                 Span::raw("Enter a room name"),
-                Span::styled(" ⵌ ", Style::default().italic()),
+                Span::styled(" # ", Style::default().italic()),
                 Span::styled(app.input.clone(), style),
             ]);
             input_width = line.width() as u16;
@@ -300,7 +301,7 @@ fn build_input_widget(app: &AppState) -> (Paragraph, u16) {
         Onboarding::Completed => {
             if app.input.is_empty() {
                 input_width = 0;
-                let text = format!("Message ⵌ {}", app.room);
+                let text = format!("Message #{}", app.room);
                 let span = Span::raw(text).style(Style::new().italic().dim());
                 Paragraph::new(span)
             } else {
@@ -377,22 +378,61 @@ fn get_selection_style(a: &String, b: &String) -> Style {
 
 // Helpers
 
-fn build_list_items<F>(
-    area: Rect,
-    all_items: &Vec<String>,
-    padding: u16,
-    formatter: F,
-) -> Vec<ListItem>
+#[derive(Debug, Clone, Copy)]
+pub enum DisplayFormat {
+    Plaintext,
+    SystemMessage,
+    UserMessage,
+}
+
+trait Displayable {
+    fn display(&self) -> &str;
+    fn format(&self) -> DisplayFormat;
+}
+
+impl Displayable for String {
+    fn display(&self) -> &str {
+        self
+    }
+
+    fn format(&self) -> DisplayFormat {
+        DisplayFormat::Plaintext
+    }
+}
+
+impl Displayable for Message {
+    fn display(&self) -> &str {
+        match self {
+            Message::System(message) | Message::User(message) => message,
+        }
+    }
+
+    fn format(&self) -> DisplayFormat {
+        match self {
+            Message::System(_) => DisplayFormat::SystemMessage,
+            Message::User(_) => DisplayFormat::UserMessage,
+        }
+    }
+}
+
+fn build_list_items<T, F>(area: Rect, all_items: &[T], padding: u16, formatter: F) -> Vec<ListItem>
 where
+    T: Displayable,
     F: Fn(&String) -> String,
 {
     let max_lines = (area.height - padding) as usize;
-
     let mut line_count = 0;
     let mut items: Vec<ListItem> = vec![];
     for item in all_items.iter().rev() {
-        let formatted_item = formatter(&item);
+        let item_content = item.display().to_string();
+        let item_style = match item.format() {
+            DisplayFormat::SystemMessage => Style::default().italic().dim(),
+            DisplayFormat::UserMessage => Style::default(),
+            DisplayFormat::Plaintext => Style::default(),
+        };
+        let formatted_item = formatter(&item_content);
 
+        // Wrap text to fit the area width
         let width = (area.width - padding) as usize;
         let wrapped_texts = textwrap::wrap(&formatted_item, width);
         let lines = wrapped_texts
@@ -400,18 +440,18 @@ where
             .map(|s| Line::from(Span::raw(s.to_string())))
             .collect::<Vec<_>>();
 
+        // Only take as many lines as we can fit
         if line_count + lines.len() > max_lines {
             let lines_fit = max_lines - line_count;
             if lines_fit > 0 {
-                // Only take as many lines as we can fit
                 let mut sliced_lines = lines.into_iter().rev().take(lines_fit).collect::<Vec<_>>();
                 sliced_lines.reverse();
-                let list_item = ListItem::from(Text::from(sliced_lines));
+                let list_item = ListItem::from(Text::from(sliced_lines)).style(item_style);
                 items.push(list_item);
             }
             break;
         } else {
-            let list_item = ListItem::from(Text::from(lines.clone()));
+            let list_item = ListItem::from(Text::from(lines.clone())).style(item_style);
             items.push(list_item);
             line_count += lines.len();
         }

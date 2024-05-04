@@ -178,7 +178,7 @@ fn handle_submit_message(app: &mut AppState, handle: &ezsockets::Client<client::
 
     // Handle normal messages
     let local_message = format!("{}: {}", &app.user.username, app.input);
-    app.add_message(local_message);
+    app.add_user_message(local_message);
 
     // send shout request
     let message = app.input.clone();

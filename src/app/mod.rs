@@ -36,6 +36,12 @@ pub enum RightSidebar {
     Logs,
 }
 
+#[derive(Clone, Debug)]
+pub enum Message {
+    System(String),
+    User(String),
+}
+
 #[derive(Debug)]
 pub struct AppState {
     pub input: String,
@@ -55,7 +61,7 @@ pub struct AppState {
     // ---
     last_heartbeat: Instant,
     logs: Vec<String>,
-    messages: Vec<String>,
+    messages: Vec<Message>,
     logging_enabled: bool,
     should_quit: bool,
     should_show_help: bool,
@@ -279,11 +285,19 @@ impl AppState {
 
     // messages
 
-    pub fn get_messages(&self) -> Vec<String> {
+    pub fn get_messages(&self) -> Vec<Message> {
         self.messages.clone()
     }
 
-    pub fn add_message(&mut self, message: String) {
+    pub fn add_user_message(&mut self, message: String) {
+        self.add_message(Message::User(message.clone()));
+    }
+
+    pub fn add_system_message(&mut self, message: String) {
+        self.add_message(Message::System(message.clone()));
+    }
+
+    fn add_message(&mut self, message: Message) {
         self.messages.push(message);
     }
 
