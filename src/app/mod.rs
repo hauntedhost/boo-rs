@@ -30,9 +30,9 @@ pub enum Focus {
 }
 
 #[derive(Debug, Default)]
-pub enum Sidebar {
+pub enum RightSidebar {
     #[default]
-    Users,
+    Rooms,
     Logs,
 }
 
@@ -44,7 +44,7 @@ pub struct AppState {
     pub user: User,
     // TODO: nest ui state in a struct
     pub ui_room_table_state: TableState,
-    pub ui_sidebar_view: Sidebar,
+    pub ui_right_sidebar_view: RightSidebar,
     pub ui_focus_area: Focus,
     pub socket_url: Option<String>,
     ui_selected_room_index: Option<usize>,
@@ -71,8 +71,8 @@ impl Default for AppState {
 
         AppState {
             input: initial_input,
-            logging_enabled: true,
             last_heartbeat: Instant::now(),
+            logging_enabled: true,
             logs: Vec::new(),
             messages: Vec::new(),
             onboarding: Onboarding::default(),
@@ -82,9 +82,9 @@ impl Default for AppState {
             should_show_help: false,
             socket_url: None,
             ui_focus_area: Focus::default(),
+            ui_right_sidebar_view: RightSidebar::default(),
             ui_room_table_state: TableState::default(),
             ui_selected_room_index: None,
-            ui_sidebar_view: Sidebar::default(),
             user: user.clone(),
             users: Vec::new(),
         }
@@ -194,10 +194,10 @@ impl AppState {
         }
     }
 
-    pub fn toggle_sidebar(&mut self) {
-        self.ui_sidebar_view = match self.ui_sidebar_view {
-            Sidebar::Users => Sidebar::Logs,
-            Sidebar::Logs => Sidebar::Users,
+    pub fn toggle_right_sidebar(&mut self) {
+        self.ui_right_sidebar_view = match self.ui_right_sidebar_view {
+            RightSidebar::Rooms => RightSidebar::Logs,
+            RightSidebar::Logs => RightSidebar::Rooms,
         };
     }
 

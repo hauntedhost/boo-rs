@@ -30,7 +30,7 @@ enum KeyAction {
     SubmitCommand(Command),
     SubmitMessage,
     ToggleHelp,
-    ToggleSidebar,
+    ToggleRightSidebar,
     #[default]
     Ignore,
 }
@@ -55,7 +55,7 @@ pub fn handle_key_event(
         KeyAction::SubmitCommand(command) => handle_command(command, app, handle),
         KeyAction::SubmitMessage => handle_submit_message(app, handle),
         KeyAction::ToggleHelp => app.toggle_show_help(),
-        KeyAction::ToggleSidebar => app.toggle_sidebar(),
+        KeyAction::ToggleRightSidebar => app.toggle_right_sidebar(),
         KeyAction::Ignore => (),
     }
 }
@@ -77,7 +77,7 @@ fn parse_key_action(app: &mut AppState, key: KeyEvent) -> KeyAction {
         return if key.code == KeyCode::Char('h') {
             KeyAction::ToggleHelp
         } else if key.code == KeyCode::Char('s') {
-            KeyAction::ToggleSidebar
+            KeyAction::ToggleRightSidebar
         } else {
             KeyAction::Ignore
         };

@@ -1,7 +1,7 @@
 use ratatui::prelude::*;
 use ratatui::widgets::*;
 
-use crate::app::{AppState, Focus, Onboarding, Sidebar};
+use crate::app::{AppState, Focus, Onboarding, RightSidebar};
 
 /// This module contains all code for rendering the UI within the main app loop.
 
@@ -32,23 +32,24 @@ pub fn render(frame: &mut Frame, app: &mut AppState) {
     let (info_area, main_outer_layout) = (outer_layout[0], outer_layout[1]);
 
     // horizontal layout inside main_outer_layout
-    // - rooms area | messages_outer_layout | sidebar area
+    // - users | messages_outer_layout | rooms
 
-    let (rooms_width, messages_width, sidebar_width) = match app.ui_sidebar_view {
-        Sidebar::Users => (25, 55, 20),
-        Sidebar::Logs => (25, 40, 35),
+    let (left_sidebar_width, messages_width, right_sidebar_width) = match app.ui_right_sidebar_view
+    {
+        RightSidebar::Rooms => (25, 50, 25),
+        RightSidebar::Logs => (25, 40, 35),
     };
 
     let main_layout = Layout::default()
         .direction(Direction::Horizontal)
         .constraints(vec![
-            Constraint::Percentage(rooms_width),
+            Constraint::Percentage(left_sidebar_width),
             Constraint::Percentage(messages_width),
-            Constraint::Percentage(sidebar_width),
+            Constraint::Percentage(right_sidebar_width),
         ])
         .split(main_outer_layout);
 
-    let (rooms_area, messages_outer_layout, sidebar_area) =
+    let (left_sidebar_area, messages_outer_layout, right_sidebar_area) =
         (main_layout[0], main_layout[1], main_layout[2]);
 
     // vertical layout inside messages_outer_layout
@@ -66,6 +67,7 @@ pub fn render(frame: &mut Frame, app: &mut AppState) {
 
     // info area
     let info_widget = build_info_widget(
+        app.input.clone(),
         app.get_username(),
         app.room.clone(),
         app.socket_url.clone(),
@@ -73,29 +75,33 @@ pub fn render(frame: &mut Frame, app: &mut AppState) {
     );
     frame.render_widget(info_widget, info_area);
 
-    // rooms area
-    let rooms = app.get_rooms_with_counts();
-    let rooms_widget = build_rooms_widget(&rooms, app.room.clone(), app.ui_focus_area);
-    let selected_room = app.get_selected_or_current_room_index();
-    app.ui_room_table_state.select(selected_room);
-    frame.render_stateful_widget(rooms_widget, rooms_area, &mut app.ui_room_table_state);
+    // users area
+    let users = app.get_uuid_username_pairs();
+    let users_widget = build_users_widget(app.user.uuid.clone(), &users);
+    frame.render_widget(users_widget, left_sidebar_area);
 
     // messages area
     let messages = app.get_messages();
     let messages_widget = build_messages_widget(messages_area, app.room.clone(), &messages);
     frame.render_widget(messages_widget, messages_area);
 
-    // sidebar area
-    match app.ui_sidebar_view {
-        Sidebar::Users => {
-            let users = app.get_uuid_username_pairs();
-            let users_widget = build_users_widget(app.user.uuid.clone(), &users);
-            frame.render_widget(users_widget, sidebar_area);
+    // right_sidebar_area
+    match app.ui_right_sidebar_view {
+        RightSidebar::Rooms => {
+            let rooms = app.get_rooms_with_counts();
+            let rooms_widget = build_rooms_widget(&rooms, app.room.clone(), app.ui_focus_area);
+            let selected_room = app.get_selected_or_current_room_index();
+            app.ui_room_table_state.select(selected_room);
+            frame.render_stateful_widget(
+                rooms_widget,
+                right_sidebar_area,
+                &mut app.ui_room_table_state,
+            );
         }
-        Sidebar::Logs => {
+        RightSidebar::Logs => {
             let logs = app.get_logs();
-            let logs_widget = build_logs_widget(sidebar_area, &logs);
-            frame.render_widget(logs_widget, sidebar_area);
+            let logs_widget = build_logs_widget(right_sidebar_area, &logs);
+            frame.render_widget(logs_widget, right_sidebar_area);
         }
     };
 
@@ -113,6 +119,8 @@ pub fn render(frame: &mut Frame, app: &mut AppState) {
 
 fn build_help_widget(area: Rect) -> List<'static> {
     let items = vec![
+        "Welcome to the chat! 👻",
+        "",
         "Keyboard Shortcuts",
         "  Esc: Quit the application",
         "  Tab: Cycle focus from input to rooms",
@@ -146,6 +154,7 @@ fn build_help_widget(area: Rect) -> List<'static> {
 }
 
 fn build_info_widget(
+    input: String,
     username: String,
     room: String,
     socket_url: Option<String>,
@@ -153,24 +162,45 @@ fn build_info_widget(
 ) -> Table<'static> {
     let socket_url = socket_url.unwrap_or_else(|| "".to_string());
 
-    let (room, hashtag) = if onboarding == Onboarding::ConfirmingUsername {
-        ("".to_string(), "".to_string())
-    } else {
-        (room, " # ".to_string())
+    let (username, sep, room) = match onboarding {
+        Onboarding::ConfirmingUsername => {
+            let username = if input == username { username } else { input };
+            (username, "".to_string(), "".to_string())
+        }
+        Onboarding::ConfirmingRoom => {
+            let room = if input == room { room } else { input };
+            (username, " ⵌ ".to_string(), room)
+        }
+        Onboarding::Completed => (username, " ⵌ ".to_string(), room),
     };
 
     let row = Row::new(vec![
         Cell::from(Line::from(vec![
-            Span::raw("👻 "),
+            Span::styled("@ ", Style::default().light_blue().bold()),
             Span::raw(username),
-            Span::raw(hashtag),
-            Span::styled(room, Style::default()),
         ])),
-        Cell::from(Text::from(format!("@{socket_url}")).alignment(Alignment::Right)),
+        Cell::from(
+            Line::from(vec![
+                Span::styled(sep, Style::default().light_blue().bold()),
+                Span::raw(room),
+            ])
+            .alignment(Alignment::Center),
+        ),
+        Cell::from(
+            Line::from(vec![
+                Span::styled("☰ ", Style::default().light_blue().bold()),
+                Span::raw(socket_url),
+            ])
+            .alignment(Alignment::Right),
+        ),
     ]);
 
     let rows = vec![row];
-    let widths = [Constraint::Fill(1), Constraint::Fill(1)];
+    let widths = [
+        Constraint::Fill(1),
+        Constraint::Fill(1),
+        Constraint::Fill(1),
+    ];
 
     let table = Table::new(rows, widths)
         .column_spacing(1)
@@ -209,7 +239,7 @@ fn build_rooms_widget(rooms: &Vec<(String, u32)>, current_room: String, focus: F
             Block::default()
                 .borders(Borders::ALL)
                 .border_style(border_style)
-                .title(" Rooms ")
+                .title(" ⵌ Rooms ")
                 .title_style(get_title_style()),
         )
 }
@@ -226,7 +256,7 @@ fn build_messages_widget(area: Rect, _room: String, messages: &Vec<String>) -> L
             Block::default()
                 .borders(Borders::ALL)
                 .border_style(Style::new().dim())
-                .title(" Chat ")
+                .title(" 👻 Chat ")
                 .title_style(get_title_style()),
         )
 }
@@ -244,7 +274,8 @@ fn build_input_widget(app: &AppState) -> (Paragraph, u16) {
             };
 
             let line = Line::from(vec![
-                Span::raw("Enter a username > "),
+                Span::raw("Enter a username"),
+                Span::styled(" @ ", Style::default().italic()),
                 Span::styled(app.input.clone(), style),
             ]);
             input_width = line.width() as u16;
@@ -259,7 +290,8 @@ fn build_input_widget(app: &AppState) -> (Paragraph, u16) {
             };
 
             let line = Line::from(vec![
-                Span::raw("Enter a room name > "),
+                Span::raw("Enter a room name"),
+                Span::styled(" ⵌ ", Style::default().italic()),
                 Span::styled(app.input.clone(), style),
             ]);
             input_width = line.width() as u16;
@@ -268,7 +300,7 @@ fn build_input_widget(app: &AppState) -> (Paragraph, u16) {
         Onboarding::Completed => {
             if app.input.is_empty() {
                 input_width = 0;
-                let text = format!("Message #{}", app.room);
+                let text = format!("Message ⵌ {}", app.room);
                 let span = Span::raw(text).style(Style::new().italic().dim());
                 Paragraph::new(span)
             } else {
@@ -309,7 +341,7 @@ fn build_users_widget(app_user_uuid: String, users: &Vec<(String, String)>) -> T
             Block::default()
                 .borders(Borders::ALL)
                 .border_style(Style::new().dim())
-                .title(" Users ")
+                .title(" @ Users ")
                 .title_style(get_title_style()),
         )
 }
@@ -324,7 +356,7 @@ fn build_logs_widget(area: Rect, logs: &Vec<String>) -> List {
             Block::default()
                 .borders(Borders::ALL)
                 .border_style(Style::new().dim())
-                .title(" Logs ")
+                .title(" ▤ Logs ")
                 .title_style(title_style),
         )
 }
