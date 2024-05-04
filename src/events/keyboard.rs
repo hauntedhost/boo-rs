@@ -263,6 +263,10 @@ fn handle_confirm_room_name_and_join(
     app: &mut AppState,
     handle: &ezsockets::Client<client::Client>,
 ) {
+    if !app.input_is_valid_room_name() {
+        return;
+    }
+
     app.room = app.input.clone();
     let request = app.join_request();
     handle.call(request).expect("join error");
@@ -271,6 +275,10 @@ fn handle_confirm_room_name_and_join(
 
 // set username to input and advance onboarding
 fn handle_confirm_username(app: &mut AppState) {
+    if !app.input_is_valid_username() {
+        return;
+    }
+
     app.user.username = app.input.clone();
     app.advance_onboarding();
 }

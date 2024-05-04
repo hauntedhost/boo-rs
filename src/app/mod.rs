@@ -156,6 +156,14 @@ impl AppState {
         !self.input_is_blank()
     }
 
+    pub fn input_is_valid_room_name(&self) -> bool {
+        !self.input_is_blank()
+    }
+
+    pub fn input_is_valid_username(&self) -> bool {
+        !self.input_is_blank()
+    }
+
     pub fn input_is_blank(&self) -> bool {
         is_blank(&self.input)
     }
