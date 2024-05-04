@@ -18,8 +18,8 @@ enum Command {
 enum KeyAction {
     AppendInputChar(char),
     ClearInput,
-    ConfirmRoomName,
-    ConfirmUsernameAndJoin,
+    ConfirmUsername,
+    ConfirmRoomNameAndJoin,
     CycleFocus,
     DeleteLastInputChar,
     QuitApp,
@@ -43,8 +43,8 @@ pub fn handle_key_event(
     match parse_key_action(app, key) {
         KeyAction::AppendInputChar(c) => app.input.push(c),
         KeyAction::ClearInput => app.input.clear(),
-        KeyAction::ConfirmRoomName => handle_confirm_room_name(app),
-        KeyAction::ConfirmUsernameAndJoin => handle_confirm_username_and_join(app, handle),
+        KeyAction::ConfirmRoomNameAndJoin => handle_confirm_room_name_and_join(app, handle),
+        KeyAction::ConfirmUsername => handle_confirm_username(app),
         KeyAction::CycleFocus => app.cycle_focus(),
         KeyAction::DeleteLastInputChar => handle_delete_last_input_char(app),
         KeyAction::QuitApp => app.quit(),
@@ -131,17 +131,17 @@ fn parse_key_action(app: &mut AppState, key: KeyEvent) -> KeyAction {
         }
 
         return match app.onboarding {
-            Onboarding::ConfirmingRoomName => KeyAction::ConfirmRoomName,
-            Onboarding::ConfirmingUsername => KeyAction::ConfirmUsernameAndJoin,
             Onboarding::Completed => KeyAction::SubmitMessage,
+            Onboarding::ConfirmingRoom => KeyAction::ConfirmRoomNameAndJoin,
+            Onboarding::ConfirmingUsername => KeyAction::ConfirmUsername,
         };
     }
 
     if is_up_or_down_key(key) {
         return match app.onboarding {
-            Onboarding::ConfirmingUsername => KeyAction::SetInputToRandomUsername,
-            Onboarding::ConfirmingRoomName => KeyAction::SetInputToRandomRoom,
             Onboarding::Completed => KeyAction::Ignore,
+            Onboarding::ConfirmingRoom => KeyAction::SetInputToRandomRoom,
+            Onboarding::ConfirmingUsername => KeyAction::SetInputToRandomUsername,
         };
     }
 
@@ -165,8 +165,8 @@ fn is_up_or_down_key(key: KeyEvent) -> bool {
 //   - confirming username and input is the username, or
 //   - confirming room and input is room name
 fn should_clear_all_input(app: &mut AppState) -> bool {
-    (app.onboarding == Onboarding::ConfirmingUsername && app.input == app.user.username)
-        || (app.onboarding == Onboarding::ConfirmingRoomName && app.input == app.room)
+    (app.onboarding == Onboarding::ConfirmingRoom && app.input == app.room)
+        || (app.onboarding == Onboarding::ConfirmingUsername && app.input == app.user.username)
 }
 
 // KeyAction handlers
@@ -253,20 +253,20 @@ fn handle_command(
 
 // KeyAction handlers: Onboarding
 
-// set room to input and advance onboarding
-fn handle_confirm_room_name(app: &mut AppState) {
-    app.room = app.input.clone();
-    app.advance_onboarding();
-}
-
-// set username to input, send join request and advance onboarding
-fn handle_confirm_username_and_join(
+// set room name to input, send join request and advance onboarding
+fn handle_confirm_room_name_and_join(
     app: &mut AppState,
     handle: &ezsockets::Client<client::Client>,
 ) {
-    app.user.username = app.input.clone();
+    app.room = app.input.clone();
     let request = app.join_request();
     handle.call(request).expect("join error");
+    app.advance_onboarding();
+}
+
+// set username to input and advance onboarding
+fn handle_confirm_username(app: &mut AppState) {
+    app.user.username = app.input.clone();
     app.advance_onboarding();
 }
 

@@ -4,6 +4,7 @@ pub mod user;
 use ratatui::widgets::TableState;
 use std::env;
 use std::time::{Duration, Instant};
+use url::Url;
 
 use crate::app::{room::Room, user::User};
 use crate::names::generate_room_name;
@@ -16,9 +17,9 @@ const HEARTBEAT_INTERVAL: Duration = Duration::new(30, 0);
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 pub enum Onboarding {
     #[default]
-    ConfirmingRoomName,
-    ConfirmingUsername,
-    Completed,
+    ConfirmingUsername, // Initial step of onboarding
+    ConfirmingRoom, // Next step of onboarding
+    Completed,      // Onboarding is complete
 }
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
@@ -45,6 +46,7 @@ pub struct AppState {
     pub ui_room_table_state: TableState,
     pub ui_sidebar_view: Sidebar,
     pub ui_focus_area: Focus,
+    pub socket_url: Option<String>,
     ui_selected_room_index: Option<usize>,
     // --
     // TODO: store users and rooms as HashMap<String, User/Room> to allow for quick adds and removes
@@ -62,9 +64,10 @@ pub struct AppState {
 impl Default for AppState {
     fn default() -> Self {
         let room = room_from_env_or_generate();
+        let user = User::new_from_env_or_generate();
 
-        // Initial input is set to the room name to prefill for onboarding
-        let initial_input = room.clone();
+        // Initial input is set to username, to prefill for ConfirmingUsername onboarding step
+        let initial_input = user.username.clone();
 
         AppState {
             input: initial_input,
@@ -77,11 +80,12 @@ impl Default for AppState {
             rooms: Vec::new(),
             should_quit: false,
             should_show_help: false,
+            socket_url: None,
             ui_focus_area: Focus::default(),
             ui_room_table_state: TableState::default(),
             ui_selected_room_index: None,
             ui_sidebar_view: Sidebar::default(),
-            user: User::new_from_env_or_generate(),
+            user: user.clone(),
             users: Vec::new(),
         }
     }
@@ -112,16 +116,26 @@ impl AppState {
         self.should_quit = true;
     }
 
+    // socket_url
+
+    pub fn set_socket_url(&mut self, url: Url) {
+        self.socket_url = if let Some(host) = url.host_str() {
+            Some(format!("{}://{}", url.scheme(), host))
+        } else {
+            None
+        };
+    }
+
     // onboarding
 
     pub fn advance_onboarding(&mut self) {
         match self.onboarding {
-            Onboarding::ConfirmingRoomName => {
-                // advance to confirming username, set input to initial username
-                self.onboarding = Onboarding::ConfirmingUsername;
-                self.input = self.user.username.clone();
-            }
             Onboarding::ConfirmingUsername => {
+                // advance to confirming room name, set input to initial room name
+                self.onboarding = Onboarding::ConfirmingRoom;
+                self.input = self.room.clone();
+            }
+            Onboarding::ConfirmingRoom => {
                 // advance to completed, clear input
                 self.onboarding = Onboarding::Completed;
                 self.input.clear();
@@ -227,6 +241,10 @@ impl AppState {
     }
 
     // users
+
+    pub fn get_username(&self) -> String {
+        self.user.username.clone()
+    }
 
     pub fn add_user(&mut self, user: User) {
         if !self.users.iter().any(|u| u.uuid == user.uuid) {
