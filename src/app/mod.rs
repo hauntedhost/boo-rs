@@ -174,6 +174,17 @@ impl AppState {
 
     // input
 
+    pub fn input_is_valid_command(&self) -> bool {
+        let re = Regex::new(r"^\/[a-zA-Z0-9]{1,10}($| [a-zA-Z0-9\-]{1,30}$)").unwrap();
+        re.is_match(&self.input)
+    }
+
+    pub fn is_valid_next_char_for_input_command(&self, c: char) -> bool {
+        let new_input = format!("{}{}", self.input, c);
+        let re = Regex::new(r"^\/[a-zA-Z0-9]{0,10}(| [a-zA-Z0-9\-]{0,30})$").unwrap();
+        re.is_match(&new_input)
+    }
+
     // message is not blank and is less than 200 characters
     pub fn input_is_valid_message(&self) -> bool {
         !self.input_is_blank() && self.input.len() <= 200

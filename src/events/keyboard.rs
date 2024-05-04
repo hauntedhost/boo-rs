@@ -113,6 +113,10 @@ fn parse_key_action(app: &mut AppState, key: KeyEvent) -> KeyAction {
 
     if key.code == KeyCode::Enter {
         if app.input.starts_with("/") {
+            if !app.input_is_valid_command() {
+                return KeyAction::SubmitCommand(Command::Unknown);
+            }
+
             return if app.onboarding == Onboarding::Completed {
                 if app.input.starts_with("/help") || app.input.starts_with("/?") {
                     KeyAction::ToggleHelp
@@ -148,24 +152,30 @@ fn parse_key_action(app: &mut AppState, key: KeyEvent) -> KeyAction {
     if let KeyCode::Char(c) = key.code {
         match app.onboarding {
             Onboarding::Completed => {
-                if app.is_valid_next_char_for_input_message(c) {
-                    return KeyAction::AppendInputChar(c);
+                return if app.input.starts_with("/") {
+                    if app.is_valid_next_char_for_input_command(c) {
+                        KeyAction::AppendInputChar(c)
+                    } else {
+                        KeyAction::Ignore
+                    }
+                } else if app.is_valid_next_char_for_input_message(c) {
+                    KeyAction::AppendInputChar(c)
                 } else {
-                    return KeyAction::Ignore;
+                    KeyAction::Ignore
                 }
             }
             Onboarding::ConfirmingRoom => {
-                if app.is_valid_next_char_for_room_name(c) {
-                    return KeyAction::AppendInputChar(c);
+                return if app.is_valid_next_char_for_room_name(c) {
+                    KeyAction::AppendInputChar(c)
                 } else {
-                    return KeyAction::Ignore;
+                    KeyAction::Ignore
                 }
             }
             Onboarding::ConfirmingUsername => {
-                if app.is_valid_next_char_for_username(c) {
-                    return KeyAction::AppendInputChar(c);
+                return if app.is_valid_next_char_for_username(c) {
+                    KeyAction::AppendInputChar(c)
                 } else {
-                    return KeyAction::Ignore;
+                    KeyAction::Ignore
                 }
             }
         }

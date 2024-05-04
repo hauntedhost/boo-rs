@@ -328,7 +328,17 @@ fn build_input_widget(app: &AppState) -> (Paragraph, u16) {
                 Paragraph::new(span)
             } else {
                 input_width = app.input.len() as u16;
-                Paragraph::new(app.input.clone())
+
+                if app.input.starts_with("/") {
+                    let command = app.input.trim()[1..].to_string();
+                    let line = Line::from(vec![
+                        Span::styled("/", Style::default().light_blue().bold().not_dim()),
+                        Span::raw(command),
+                    ]);
+                    Paragraph::new(line)
+                } else {
+                    Paragraph::new(app.input.clone())
+                }
             }
         }
     };
