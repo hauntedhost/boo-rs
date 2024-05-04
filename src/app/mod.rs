@@ -2,6 +2,7 @@ pub mod room;
 pub mod user;
 
 use ratatui::widgets::TableState;
+use regex::Regex;
 use std::env;
 use std::time::{Duration, Instant};
 use url::Url;
@@ -173,19 +174,35 @@ impl AppState {
 
     // input
 
+    // message is not blank and is less than 200 characters
     pub fn input_is_valid_message(&self) -> bool {
-        !self.input_is_blank()
+        !self.input_is_blank() && self.input.len() <= 200
     }
 
+    pub fn is_valid_next_char_for_input_message(&self, c: char) -> bool {
+        let new_message = format!("{}{}", self.input, c);
+        new_message.len() <= 200
+    }
+
+    // room name is alphanumeric and hyphens, between 3 and 20 characters
     pub fn input_is_valid_room_name(&self) -> bool {
-        !self.input_is_blank()
+        is_valid_room_or_username(&self.input)
     }
 
+    pub fn is_valid_next_char_for_room_name(&self, c: char) -> bool {
+        is_valid_room_or_username_with(&self.input, c)
+    }
+
+    // username is alphanumeric and hyphens, between 3 and 20 characters
     pub fn input_is_valid_username(&self) -> bool {
-        !self.input_is_blank()
+        is_valid_room_or_username(&self.input)
     }
 
-    pub fn input_is_blank(&self) -> bool {
+    pub fn is_valid_next_char_for_username(&self, c: char) -> bool {
+        is_valid_room_or_username_with(&self.input, c)
+    }
+
+    fn input_is_blank(&self) -> bool {
         is_blank(&self.input)
     }
 
@@ -364,6 +381,17 @@ impl AppState {
     pub fn shout_request(&mut self, message: String) -> Request {
         Request::new_shout(self.room.clone(), message)
     }
+}
+
+pub fn is_valid_room_or_username(name: &str) -> bool {
+    let re = Regex::new(r"^[a-zA-Z0-9\-]{3,20}$").unwrap();
+    re.is_match(&name)
+}
+
+pub fn is_valid_room_or_username_with(name: &str, c: char) -> bool {
+    let re = Regex::new(r"^[a-zA-Z0-9\-]{1,20}$").unwrap();
+    let new_name = format!("{}{}", name, c);
+    re.is_match(&new_name)
 }
 
 pub fn is_blank(s: &str) -> bool {

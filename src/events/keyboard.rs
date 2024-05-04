@@ -146,12 +146,29 @@ fn parse_key_action(app: &mut AppState, key: KeyEvent) -> KeyAction {
     }
 
     if let KeyCode::Char(c) = key.code {
-        // ignore spaces in onboarding room and username input
-        if c == ' ' && app.onboarding != Onboarding::Completed {
-            return KeyAction::Ignore;
+        match app.onboarding {
+            Onboarding::Completed => {
+                if app.is_valid_next_char_for_input_message(c) {
+                    return KeyAction::AppendInputChar(c);
+                } else {
+                    return KeyAction::Ignore;
+                }
+            }
+            Onboarding::ConfirmingRoom => {
+                if app.is_valid_next_char_for_room_name(c) {
+                    return KeyAction::AppendInputChar(c);
+                } else {
+                    return KeyAction::Ignore;
+                }
+            }
+            Onboarding::ConfirmingUsername => {
+                if app.is_valid_next_char_for_username(c) {
+                    return KeyAction::AppendInputChar(c);
+                } else {
+                    return KeyAction::Ignore;
+                }
+            }
         }
-
-        return KeyAction::AppendInputChar(c);
     }
 
     KeyAction::Ignore
@@ -284,7 +301,6 @@ fn handle_confirm_username(app: &mut AppState) {
     if !app.input_is_valid_username() {
         return;
     }
-
     app.user.username = app.input.clone();
     app.advance_onboarding();
 }
