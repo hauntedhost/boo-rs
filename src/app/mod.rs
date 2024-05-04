@@ -178,6 +178,7 @@ impl AppState {
         let mut new_rooms = rooms.clone();
         new_rooms.sort_by_key(|room| room.name.clone());
         self.rooms = new_rooms;
+        self.set_selected_to_current_room()
     }
 
     pub fn get_rooms_with_counts(&self) -> Vec<(String, u32)> {
