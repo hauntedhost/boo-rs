@@ -64,7 +64,7 @@ pub fn handle_key_event(
 
 fn parse_key_action(app: &mut AppState, key: KeyEvent) -> KeyAction {
     // Any key exits help
-    if app.should_show_help() {
+    if app.showing_help() {
         return KeyAction::ToggleHelp;
     }
 
@@ -188,6 +188,7 @@ fn handle_submit_message(app: &mut AppState, handle: &ezsockets::Client<client::
     // send shout request
     let message = app.input.clone();
     let request = app.shout_request(message);
+    app.set_socket_activity();
     handle.call(request).expect("shout request error");
 
     // clear input
@@ -220,9 +221,11 @@ fn handle_command(
                 app.input.clear();
                 let leave_request = app.leave_request();
                 debug!("sending leave request={:?}", leave_request);
+                app.set_socket_activity();
                 match handle.call(leave_request) {
                     Ok(_) => {
                         let join_request = app.join_new_room_request(new_room.clone());
+                        app.set_socket_activity();
                         handle.call(join_request).expect("join error");
                         app.room = new_room;
                         app.set_selected_to_current_room();
@@ -239,9 +242,11 @@ fn handle_command(
                 if new_room != app.room {
                     let leave_request = app.leave_request();
                     debug!("sending leave request={:?}", leave_request);
+                    app.set_socket_activity();
                     match handle.call(leave_request) {
                         Ok(_) => {
                             let join_request = app.join_new_room_request(new_room.clone());
+                            app.set_socket_activity();
                             handle.call(join_request).expect("join error");
                             app.room = new_room;
                             app.set_selected_to_current_room();
@@ -269,6 +274,7 @@ fn handle_confirm_room_name_and_join(
 
     app.room = app.input.clone();
     let request = app.join_request();
+    app.set_socket_activity();
     handle.call(request).expect("join error");
     app.advance_onboarding();
 }

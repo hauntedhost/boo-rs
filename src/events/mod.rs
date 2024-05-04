@@ -21,8 +21,11 @@ pub fn handle_events(
     rx: &mut Receiver<String>,
     app: &mut AppState,
 ) -> std::io::Result<()> {
+    app.tick_socket_socket_activity();
+
     if app.update_heartbeat_timer() {
         let heartbeat_request = app.heartbeat_request();
+        app.set_socket_activity();
         handle.call(heartbeat_request).expect("join error");
     }
 

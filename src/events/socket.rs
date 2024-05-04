@@ -4,6 +4,7 @@ use crate::app::AppState;
 use crate::socket::response::{parse_response, Response};
 
 pub fn handle_message_event(app: &mut AppState, message_payload: String) {
+    app.set_socket_activity();
     debug!("received message: {}", message_payload);
     app.append_log(message_payload.clone());
 

@@ -28,6 +28,7 @@ async fn main() -> std::io::Result<()> {
     info!("app started");
 
     // connect websocket
+    app.set_socket_activity();
     let (tx, mut rx) = create_channel();
     let (handle, future) = connect_socket(tx, &mut app).await;
 
@@ -41,7 +42,7 @@ async fn main() -> std::io::Result<()> {
     let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
 
     // main loop
-    while !app.should_quit() {
+    while !app.quitting() {
         terminal.draw(|f| ui::render(f, &mut app))?;
         handle_events(&handle, &mut rx, &mut app)?;
     }

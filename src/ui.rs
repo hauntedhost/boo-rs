@@ -20,7 +20,7 @@ const LOG_SYMBOL: &str = "=";
 pub fn render(frame: &mut Frame, app: &mut AppState) {
     let AppState { user, input, .. } = app;
 
-    if app.should_show_help() {
+    if app.showing_help() {
         let layout = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(vec![Constraint::Percentage(100)])
@@ -77,12 +77,14 @@ pub fn render(frame: &mut Frame, app: &mut AppState) {
     let (messages_area, input_area) = (messages_layout[0], messages_layout[1]);
 
     // info area
+
     let info_widget = build_info_widget(
         app.input.clone(),
         app.get_username(),
         app.room.clone(),
-        app.socket_url.clone(),
         app.onboarding,
+        app.socket_url.clone(),
+        app.is_socket_active(),
     );
     frame.render_widget(info_widget, info_area);
 
@@ -168,8 +170,9 @@ fn build_info_widget(
     input: String,
     username: String,
     room: String,
-    socket_url: Option<String>,
     onboarding: Onboarding,
+    socket_url: Option<String>,
+    is_socket_active: bool,
 ) -> Table<'static> {
     let socket_url = socket_url.unwrap_or_else(|| "".to_string());
 
@@ -183,6 +186,12 @@ fn build_info_widget(
             (username, format!(" {HASH_SYMBOL} "), room)
         }
         Onboarding::Completed => (username, format!(" {HASH_SYMBOL} "), room),
+    };
+
+    let socket_style = if is_socket_active {
+        Style::default().light_blue().not_dim().slow_blink()
+    } else {
+        Style::default().light_blue()
     };
 
     let row = Row::new(vec![
@@ -199,10 +208,7 @@ fn build_info_widget(
         ),
         Cell::from(
             Line::from(vec![
-                Span::styled(
-                    format!("{SOCKET_SYMBOL} "),
-                    Style::default().light_blue().bold(),
-                ),
+                Span::styled(format!("{SOCKET_SYMBOL} "), socket_style),
                 Span::raw(socket_url),
             ])
             .alignment(Alignment::Right),

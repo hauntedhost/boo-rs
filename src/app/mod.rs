@@ -12,7 +12,8 @@ use crate::socket::request::Request;
 
 /// This module contains the AppState struct used to store the state of the application.
 
-const HEARTBEAT_INTERVAL: Duration = Duration::new(30, 0);
+const HEARTBEAT_INTERVAL: Duration = Duration::new(30, 0); // 30 seconds
+const SOCKET_ACTIVITY_DURATION: Duration = Duration::new(0, 500_000_000); // 0.5 seconds
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 pub enum Onboarding {
@@ -42,29 +43,30 @@ pub enum Message {
     User(String),
 }
 
+// TODO: store users and rooms as HashMap<String, User/Room> to allow for quick adds and removes
+// TODO: nest ui state in a struct
+
 #[derive(Debug)]
 pub struct AppState {
     pub input: String,
     pub onboarding: Onboarding,
     pub room: String,
-    pub user: User,
-    // TODO: nest ui state in a struct
-    pub ui_room_table_state: TableState,
-    pub ui_right_sidebar_view: RightSidebar,
-    pub ui_focus_area: Focus,
     pub socket_url: Option<String>,
-    ui_selected_room_index: Option<usize>,
-    // --
-    // TODO: store users and rooms as HashMap<String, User/Room> to allow for quick adds and removes
-    rooms: Vec<Room>,
-    users: Vec<User>,
-    // ---
+    pub ui_focus_area: Focus,
+    pub ui_right_sidebar_view: RightSidebar,
+    pub ui_room_table_state: TableState,
+    pub user: User,
     last_heartbeat: Instant,
+    logging_enabled: bool,
     logs: Vec<String>,
     messages: Vec<Message>,
-    logging_enabled: bool,
-    should_quit: bool,
-    should_show_help: bool,
+    quitting: bool,
+    rooms: Vec<Room>,
+    showing_help: bool,
+    socket_activity: bool,
+    socket_last_active: Instant,
+    ui_selected_room_index: Option<usize>,
+    users: Vec<User>,
 }
 
 impl Default for AppState {
@@ -82,10 +84,12 @@ impl Default for AppState {
             logs: Vec::new(),
             messages: Vec::new(),
             onboarding: Onboarding::default(),
+            quitting: false,
             room: room.clone(),
             rooms: Vec::new(),
-            should_quit: false,
-            should_show_help: false,
+            showing_help: false,
+            socket_activity: false,
+            socket_last_active: Instant::now(),
             socket_url: None,
             ui_focus_area: Focus::default(),
             ui_right_sidebar_view: RightSidebar::default(),
@@ -112,14 +116,31 @@ impl AppState {
         }
     }
 
+    // socket activity
+
+    pub fn is_socket_active(&self) -> bool {
+        self.socket_activity
+    }
+
+    pub fn set_socket_activity(&mut self) {
+        self.socket_activity = true;
+        self.socket_last_active = Instant::now();
+    }
+
+    pub fn tick_socket_socket_activity(&mut self) {
+        if self.socket_activity && self.socket_last_active.elapsed() >= SOCKET_ACTIVITY_DURATION {
+            self.socket_activity = false;
+        }
+    }
+
     // quitting app
 
-    pub fn should_quit(&self) -> bool {
-        self.should_quit
+    pub fn quitting(&self) -> bool {
+        self.quitting
     }
 
     pub fn quit(&mut self) {
-        self.should_quit = true;
+        self.quitting = true;
     }
 
     // socket_url
@@ -197,15 +218,15 @@ impl AppState {
         };
     }
 
-    pub fn should_show_help(&self) -> bool {
-        self.should_show_help
+    pub fn showing_help(&self) -> bool {
+        self.showing_help
     }
 
     pub fn toggle_show_help(&mut self) {
-        if self.should_show_help {
-            self.should_show_help = false;
+        if self.showing_help {
+            self.showing_help = false;
         } else {
-            self.should_show_help = true;
+            self.showing_help = true;
         }
     }
 
