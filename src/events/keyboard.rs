@@ -16,13 +16,17 @@ enum Command {
 
 #[derive(Debug, Default)]
 enum KeyAction {
+    #[default]
+    Ignore,
     AppendInputChar(char),
     ClearInput,
-    ConfirmUsername,
     ConfirmRoomNameAndJoin,
+    ConfirmUsername,
     CycleFocus,
     DeleteLastInputChar,
     QuitApp,
+    ScrollMessagesDown,
+    ScrollMessagesUp,
     SelectNextRoom,
     SelectPrevRoom,
     SetInputToRandomRoom,
@@ -31,8 +35,6 @@ enum KeyAction {
     SubmitMessage,
     ToggleHelp,
     ToggleRightSidebar,
-    #[default]
-    Ignore,
 }
 
 pub fn handle_key_event(
@@ -41,6 +43,7 @@ pub fn handle_key_event(
     key: KeyEvent,
 ) {
     match parse_key_action(app, key) {
+        KeyAction::Ignore => (),
         KeyAction::AppendInputChar(c) => app.input.push(c),
         KeyAction::ClearInput => app.input.clear(),
         KeyAction::ConfirmRoomNameAndJoin => handle_confirm_room_name_and_join(app, handle),
@@ -48,6 +51,8 @@ pub fn handle_key_event(
         KeyAction::CycleFocus => app.cycle_focus(),
         KeyAction::DeleteLastInputChar => handle_delete_last_input_char(app),
         KeyAction::QuitApp => app.quit(),
+        KeyAction::ScrollMessagesDown => app.scroll_messages_down(),
+        KeyAction::ScrollMessagesUp => app.scroll_messages_up(),
         KeyAction::SelectNextRoom => app.select_next_room(),
         KeyAction::SelectPrevRoom => app.select_prev_room(),
         KeyAction::SetInputToRandomRoom => set_input_to_random_room(app),
@@ -56,7 +61,6 @@ pub fn handle_key_event(
         KeyAction::SubmitMessage => handle_submit_message(app, handle),
         KeyAction::ToggleHelp => app.toggle_show_help(),
         KeyAction::ToggleRightSidebar => app.toggle_right_sidebar(),
-        KeyAction::Ignore => (),
     }
 }
 
@@ -141,9 +145,17 @@ fn parse_key_action(app: &mut AppState, key: KeyEvent) -> KeyAction {
         };
     }
 
-    if is_up_or_down_key(key) {
+    if key.code == KeyCode::Up {
         return match app.onboarding {
-            Onboarding::Completed => KeyAction::Ignore,
+            Onboarding::Completed => KeyAction::ScrollMessagesUp,
+            Onboarding::ConfirmingRoom => KeyAction::SetInputToRandomRoom,
+            Onboarding::ConfirmingUsername => KeyAction::SetInputToRandomUsername,
+        };
+    }
+
+    if key.code == KeyCode::Down {
+        return match app.onboarding {
+            Onboarding::Completed => KeyAction::ScrollMessagesDown,
             Onboarding::ConfirmingRoom => KeyAction::SetInputToRandomRoom,
             Onboarding::ConfirmingUsername => KeyAction::SetInputToRandomUsername,
         };
@@ -187,10 +199,6 @@ fn parse_key_action(app: &mut AppState, key: KeyEvent) -> KeyAction {
 fn is_quit_key(key: KeyEvent) -> bool {
     key.code == KeyCode::Esc
         || (key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c'))
-}
-
-fn is_up_or_down_key(key: KeyEvent) -> bool {
-    key.code == KeyCode::Up || key.code == KeyCode::Down
 }
 
 // clear entire input on backspace if:

@@ -26,7 +26,7 @@ pub fn handle_events(
     if app.update_heartbeat_timer() {
         let heartbeat_request = app.heartbeat_request();
         app.set_socket_activity();
-        handle.call(heartbeat_request).expect("join error");
+        handle.call(heartbeat_request).expect("heartbeat error");
     }
 
     // Handle incoming messages from the socket

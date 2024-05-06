@@ -66,6 +66,7 @@ pub struct AppState {
     showing_help: bool,
     socket_activity: bool,
     socket_last_active: Instant,
+    ui_messages_scrollbar_position: usize,
     ui_selected_room_index: Option<usize>,
     users: Vec<User>,
 }
@@ -93,6 +94,7 @@ impl Default for AppState {
             socket_last_active: Instant::now(),
             socket_url: None,
             ui_focus_area: Focus::default(),
+            ui_messages_scrollbar_position: 0,
             ui_right_sidebar_view: RightSidebar::default(),
             ui_room_table_state: TableState::default(),
             ui_selected_room_index: None,
@@ -108,12 +110,40 @@ impl AppState {
     }
 
     // heartbeat
+
     pub fn update_heartbeat_timer(&mut self) -> bool {
         if self.last_heartbeat.elapsed() >= HEARTBEAT_INTERVAL {
             self.last_heartbeat = Instant::now();
             true
         } else {
             false
+        }
+    }
+
+    // messages scrollbar
+
+    pub fn maybe_scroll_messages_down(&mut self) {
+        let current_position = self.ui_messages_scrollbar_position;
+        if current_position + 2 == self.messages.len() {
+            self.ui_messages_scrollbar_position = current_position + 1;
+        }
+    }
+
+    pub fn get_messages_scrollbar_position(&self) -> usize {
+        self.ui_messages_scrollbar_position
+    }
+
+    pub fn scroll_messages_up(&mut self) {
+        let current_position = self.ui_messages_scrollbar_position;
+        if current_position >= 1 {
+            self.ui_messages_scrollbar_position = current_position - 1;
+        }
+    }
+
+    pub fn scroll_messages_down(&mut self) {
+        let current_position = self.ui_messages_scrollbar_position;
+        if current_position + 1 < self.messages.len() {
+            self.ui_messages_scrollbar_position = current_position + 1;
         }
     }
 
@@ -349,14 +379,17 @@ impl AppState {
 
     pub fn add_user_message(&mut self, message: String) {
         self.add_message(Message::User(message.clone()));
+        self.maybe_scroll_messages_down()
     }
 
     pub fn add_system_message(&mut self, message: String) {
         self.add_message(Message::System(message.clone()));
+        self.maybe_scroll_messages_down()
     }
 
     fn add_message(&mut self, message: Message) {
         self.messages.push(message);
+        self.maybe_scroll_messages_down()
     }
 
     // logs

@@ -95,8 +95,49 @@ pub fn render(frame: &mut Frame, app: &mut AppState) {
 
     // messages area
     let messages = app.get_messages();
-    let messages_widget = build_messages_widget(messages_area, app.room.clone(), &messages);
+    let scrollbar_position = app.get_messages_scrollbar_position();
+    let (messages_widget, viewport_scrollbar_position, line_count) = build_messages_widget(
+        messages_area,
+        app.room.clone(),
+        &messages,
+        scrollbar_position,
+    );
     frame.render_widget(messages_widget, messages_area);
+
+    let message_area_height = area_height_minus_border(messages_area) as usize;
+    let content_length = line_count.checked_sub(message_area_height).unwrap_or(0);
+    let viewport_content_length = messages.len().checked_sub(message_area_height).unwrap_or(0);
+
+    // log::debug!(
+    //     "
+    //      messages.len={}
+    //      area_height={message_area_height}
+    //      scrollbar_position={scrollbar_position}
+    //      line_count={line_count}
+    //      content_length={content_length}
+    //      viewport_content_length={viewport_content_length}
+    //      viewport_scrollbar_position={viewport_scrollbar_position}",
+    //     messages.len()
+    // );
+
+    let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
+        .begin_symbol(Some("↑"))
+        .end_symbol(Some("↓"))
+        .track_symbol(Some("│"));
+
+    let mut scrollbar_state = ScrollbarState::default()
+        .content_length(content_length)
+        .position(viewport_scrollbar_position);
+    // .viewport_content_length(viewport_content_length);
+
+    frame.render_stateful_widget(
+        scrollbar,
+        messages_area.inner(&Margin {
+            vertical: 1,
+            horizontal: 0,
+        }),
+        &mut scrollbar_state,
+    );
 
     // right_sidebar_area
     match app.ui_right_sidebar_view {
@@ -126,6 +167,30 @@ pub fn render(frame: &mut Frame, app: &mut AppState) {
     let x = input_area.x + 1 + input_width;
     let y = input_area.y + 1;
     frame.set_cursor(x, y);
+}
+
+fn calculate_viewport_scroll_position(
+    area: Rect,
+    item_count: usize,
+    line_count: usize,
+    scrollbar_position: usize,
+) -> usize {
+    let area_height = area_height_minus_border(area) as usize;
+    let viewport_item_count = item_count.checked_sub(area_height).unwrap_or(0);
+    let viewport_line_count = line_count.checked_sub(area_height).unwrap_or(0);
+
+    if viewport_item_count == 0 || viewport_line_count == 0 {
+        return 0;
+    }
+
+    let average_lines_per_item = viewport_line_count as f64 / viewport_item_count as f64;
+    let estimated_position = (scrollbar_position as f64 * average_lines_per_item).round() as usize;
+
+    return if estimated_position > viewport_line_count {
+        viewport_line_count
+    } else {
+        estimated_position
+    };
 }
 
 // Widgets
@@ -264,24 +329,66 @@ fn build_rooms_widget(rooms: &Vec<(String, u32)>, current_room: String, focus: F
         )
 }
 
-fn build_messages_widget(area: Rect, _room: String, messages: &Vec<Message>) -> List {
-    let (list_items, line_count) = build_list_items(area, messages, 2, default_formatter);
+fn area_height_minus_border(area: Rect) -> u16 {
+    area.height.checked_sub(2).unwrap_or(0)
+}
 
+fn area_width_minus_border(area: Rect) -> u16 {
+    area.width.checked_sub(2).unwrap_or(0)
+}
+
+fn build_messages_widget(
+    area: Rect,
+    _room: String,
+    messages: &Vec<Message>,
+    scrollbar_position: usize,
+) -> (Paragraph, usize, usize) {
+    // calculate wrapped line count
+    let mut line_count = 0;
+    for message in messages.iter() {
+        // Wrap text to fit the area width
+        let text = message.display().to_string();
+        let width = area_width_minus_border(area) as usize;
+        let wrapped_texts = textwrap::wrap(&text, width);
+        let lines = wrapped_texts
+            .iter()
+            .map(|s| Line::from(Span::raw(s.to_string())))
+            .collect::<Vec<_>>();
+        line_count += lines.len();
+    }
+
+    // TODO: style message lines based on type
+    // let line = Line::from(vec![
+    //     Span::styled(" @ ", Style::default().italic()),
+    //     ...
+    // ]);
+    let messages: Vec<Line> = messages
+        .iter()
+        .map(|message| Line::from(Span::raw(message.display().to_string())))
+        .collect();
+
+    // TODO: fix pushing chat to the bottom
     // padding to push chat to the bottom
-    let top_padding = (area.height - 2)
-        .checked_sub(line_count as u16)
-        .unwrap_or(0) as u16;
+    // let top_padding = area_height_minus_border(area)
+    //     .checked_sub(line_count as u16)
+    //     .unwrap_or(0) as u16;
 
-    List::new(list_items)
-        .direction(ListDirection::TopToBottom)
+    let viewport_scollbar_position =
+        calculate_viewport_scroll_position(area, messages.len(), line_count, scrollbar_position);
+
+    let paragraph = Paragraph::new(messages)
+        .wrap(Wrap { trim: false })
+        .scroll((viewport_scollbar_position as u16, 0))
         .block(
             Block::default()
-                .padding(Padding::new(0, 0, top_padding, 0))
+                // .padding(Padding::new(0, 0, top_padding, 0))
                 .borders(Borders::ALL)
                 .border_style(Style::new().dim())
                 .title(format!(" {CHAT_SYMBOL} Chat "))
                 .title_style(get_title_style()),
-        )
+        );
+
+    (paragraph, viewport_scollbar_position, line_count)
 }
 
 fn build_input_widget(app: &AppState) -> (Paragraph, u16) {
