@@ -1,7 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use log::{debug, error};
 
-use crate::app::{is_blank, AppState, Focus, Onboarding};
+use crate::app::{is_blank, AppState, Focus, Onboarding, RightSidebar};
 use crate::names::{generate_room_name, generate_username};
 use crate::socket::client;
 
@@ -88,7 +88,9 @@ fn parse_key_action(app: &mut AppState, key: KeyEvent) -> KeyAction {
     }
 
     if key.code == KeyCode::Tab {
-        return if app.onboarding == Onboarding::Completed {
+        return if app.onboarding == Onboarding::Completed
+            && app.ui_right_sidebar_view == RightSidebar::Rooms
+        {
             KeyAction::CycleFocus
         } else {
             KeyAction::Ignore

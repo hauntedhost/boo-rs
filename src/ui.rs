@@ -108,18 +108,6 @@ pub fn render(frame: &mut Frame, app: &mut AppState) {
     let content_length = line_count.checked_sub(message_area_height).unwrap_or(0);
     let viewport_content_length = messages.len().checked_sub(message_area_height).unwrap_or(0);
 
-    // log::debug!(
-    //     "
-    //      messages.len={}
-    //      area_height={message_area_height}
-    //      scrollbar_position={scrollbar_position}
-    //      line_count={line_count}
-    //      content_length={content_length}
-    //      viewport_content_length={viewport_content_length}
-    //      viewport_scrollbar_position={viewport_scrollbar_position}",
-    //     messages.len()
-    // );
-
     let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
         .begin_symbol(Some("↑"))
         .end_symbol(Some("↓"))
@@ -329,66 +317,63 @@ fn build_rooms_widget(rooms: &Vec<(String, u32)>, current_room: String, focus: F
         )
 }
 
-fn area_height_minus_border(area: Rect) -> u16 {
-    area.height.checked_sub(2).unwrap_or(0)
-}
-
-fn area_width_minus_border(area: Rect) -> u16 {
-    area.width.checked_sub(2).unwrap_or(0)
-}
-
 fn build_messages_widget(
     area: Rect,
     _room: String,
     messages: &Vec<Message>,
     scrollbar_position: usize,
 ) -> (Paragraph, usize, usize) {
-    // calculate wrapped line count
-    let mut line_count = 0;
-    for message in messages.iter() {
-        // Wrap text to fit the area width
-        let text = message.display().to_string();
-        let width = area_width_minus_border(area) as usize;
-        let wrapped_texts = textwrap::wrap(&text, width);
-        let lines = wrapped_texts
-            .iter()
-            .map(|s| Line::from(Span::raw(s.to_string())))
-            .collect::<Vec<_>>();
-        line_count += lines.len();
-    }
+    let wrapped_line_count = calculate_wrapped_line_count(area, messages);
 
-    // TODO: style message lines based on type
-    // let line = Line::from(vec![
-    //     Span::styled(" @ ", Style::default().italic()),
-    //     ...
-    // ]);
-    let messages: Vec<Line> = messages
+    let styled_messages: Vec<Line> = messages
         .iter()
-        .map(|message| Line::from(Span::raw(message.display().to_string())))
+        .map(|message| match message.format() {
+            DisplayFormat::Plaintext => Line::from(Span::raw(message.display().to_string())),
+            DisplayFormat::SystemMessage => Line::from(Span::styled(
+                message.display().to_string(),
+                Style::default().italic().dim(),
+            )),
+            DisplayFormat::UserMessage => {
+                let text = message.display().to_string();
+                let index = text.find(": ").expect("expected ':' in message");
+                let username = text[..index + 1].to_string();
+                let message = text[index + 1..].to_string();
+                Line::from(vec![
+                    Span::styled(username, Style::default().light_green()),
+                    Span::raw(message),
+                ])
+            }
+        })
         .collect();
 
-    // TODO: fix pushing chat to the bottom
-    // padding to push chat to the bottom
-    // let top_padding = area_height_minus_border(area)
-    //     .checked_sub(line_count as u16)
-    //     .unwrap_or(0) as u16;
+    let viewport_scollbar_position = calculate_viewport_scroll_position(
+        area,
+        styled_messages.len(),
+        wrapped_line_count,
+        scrollbar_position,
+    );
 
-    let viewport_scollbar_position =
-        calculate_viewport_scroll_position(area, messages.len(), line_count, scrollbar_position);
+    // padding to push messages to bottom of chat
+    let padding = if wrapped_line_count < area_height_minus_border(area) as usize {
+        let top_padding = area_height_minus_border(area) as u16 - wrapped_line_count as u16;
+        Padding::top(top_padding)
+    } else {
+        Padding::default()
+    };
 
-    let paragraph = Paragraph::new(messages)
+    let paragraph = Paragraph::new(styled_messages)
         .wrap(Wrap { trim: false })
         .scroll((viewport_scollbar_position as u16, 0))
         .block(
             Block::default()
-                // .padding(Padding::new(0, 0, top_padding, 0))
+                .padding(padding)
                 .borders(Borders::ALL)
                 .border_style(Style::new().dim())
                 .title(format!(" {CHAT_SYMBOL} Chat "))
                 .title_style(get_title_style()),
         );
 
-    (paragraph, viewport_scollbar_position, line_count)
+    (paragraph, viewport_scollbar_position, wrapped_line_count)
 }
 
 fn build_input_widget(app: &AppState) -> (Paragraph, u16) {
@@ -554,6 +539,28 @@ impl Displayable for Message {
     }
 }
 
+fn area_height_minus_border(area: Rect) -> u16 {
+    area.height.checked_sub(2).unwrap_or(0)
+}
+
+fn area_width_minus_border(area: Rect) -> u16 {
+    area.width.checked_sub(2).unwrap_or(0)
+}
+
+fn calculate_wrapped_line_count<T>(area: Rect, items: &[T]) -> usize
+where
+    T: Displayable,
+{
+    let mut line_count = 0;
+    for item in items.iter() {
+        let text = item.display().to_string();
+        let width = area_width_minus_border(area) as usize;
+        let wrapped_texts = textwrap::wrap(&text, width);
+        line_count += wrapped_texts.len();
+    }
+    line_count
+}
+
 fn build_list_items<T, F>(
     area: Rect,
     all_items: &[T],
@@ -579,36 +586,11 @@ where
         // Wrap text to fit the area width
         let width = (area.width - padding) as usize;
         let wrapped_texts = textwrap::wrap(&formatted_item, width);
-        let lines = if item.format() == DisplayFormat::UserMessage {
-            // Highlight the username in user messages (very annoying code to handle text wrapping)
-            let style = Style::default().light_green();
-            let mut found_sep = false;
-            let mut lines: Vec<ratatui::text::Line<'_>> = Vec::new();
-            for text in wrapped_texts {
-                if found_sep {
-                    let line = Line::from(Span::raw(text.to_string()));
-                    lines.push(line);
-                    continue;
-                }
 
-                if let Some(index) = text.find(":") {
-                    found_sep = true;
-                    let username = text[..index].to_string();
-                    let message = text[index..].to_string();
-                    let line = Line::from(vec![Span::styled(username, style), Span::raw(message)]);
-                    lines.push(line);
-                } else {
-                    let line = Line::from(Span::styled(text.to_string(), style));
-                    lines.push(line);
-                }
-            }
-            lines
-        } else {
-            wrapped_texts
-                .iter()
-                .map(|s| Line::from(Span::raw(s.to_string())))
-                .collect::<Vec<_>>()
-        };
+        let lines = wrapped_texts
+            .iter()
+            .map(|s| Line::from(Span::raw(s.to_string())))
+            .collect::<Vec<_>>();
 
         // Only take as many lines as we can fit
         if line_count + lines.len() > max_lines {
@@ -626,29 +608,22 @@ where
             line_count += lines.len();
         }
     }
-
     items.reverse();
     (items, line_count)
 }
 
-fn default_formatter(string: &String) -> String {
-    string.clone()
-}
-
+// Example: filter presence_state events
+// if let serde_json::Value::Array(elements) = json.clone() {
+//     if let Some(event) = elements.get(3).and_then(|e| e.as_str()) {
+//         if event != "presence_state" {
+//             return "".to_string();
+//         }
+//     }
+// }
 fn json_formatter(string: &String) -> String {
     let json: serde_json::Value = serde_json::from_str(string).unwrap();
-
-    // example: filter presence_state events
-    // if let serde_json::Value::Array(elements) = json.clone() {
-    //     if let Some(event) = elements.get(3).and_then(|e| e.as_str()) {
-    //         if event != "presence_state" {
-    //             return "".to_string();
-    //         }
-    //     }
-    // }
-
     let pretty_json = serde_json::to_string_pretty(&json).unwrap();
-    let formatted_log = format!("=> {}", pretty_json.trim());
+    let formatted_log = format!("> {}", pretty_json.trim());
 
     formatted_log
 }

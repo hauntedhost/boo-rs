@@ -31,13 +31,14 @@ pub enum Focus {
     Rooms,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 pub enum RightSidebar {
     #[default]
     Rooms,
     Logs,
 }
 
+// TODO: Add Json(String) to enum
 #[derive(Clone, Debug)]
 pub enum Message {
     System(String),
@@ -289,9 +290,12 @@ impl AppState {
     }
 
     pub fn toggle_right_sidebar(&mut self) {
-        self.ui_right_sidebar_view = match self.ui_right_sidebar_view {
-            RightSidebar::Rooms => RightSidebar::Logs,
-            RightSidebar::Logs => RightSidebar::Rooms,
+        match self.ui_right_sidebar_view {
+            RightSidebar::Rooms => {
+                self.ui_focus_area = Focus::Input;
+                self.ui_right_sidebar_view = RightSidebar::Logs;
+            }
+            RightSidebar::Logs => self.ui_right_sidebar_view = RightSidebar::Rooms,
         };
     }
 
