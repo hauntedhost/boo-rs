@@ -1,5 +1,6 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use log::{debug, error};
+use lorem_rustum::LoremRustum;
 
 use crate::app::{is_blank, AppState, Focus, Onboarding, RightSidebar};
 use crate::names::{generate_room_name, generate_username};
@@ -10,6 +11,7 @@ enum Command {
     ChangeUsername,
     SwitchRoomsFromInput,
     SwitchRoomsFromSelected,
+    SubmitLoremMessages,
     #[default]
     Unknown,
 }
@@ -126,8 +128,10 @@ fn parse_key_action(app: &mut AppState, key: KeyEvent) -> KeyAction {
             return if app.onboarding == Onboarding::Completed {
                 if app.input.starts_with("/help") || app.input.starts_with("/?") {
                     KeyAction::ToggleHelp
-                } else if app.input.starts_with("/join") {
+                } else if app.input.starts_with("/join ") {
                     KeyAction::SubmitCommand(Command::SwitchRoomsFromInput)
+                } else if app.input.starts_with("/lorem ") {
+                    KeyAction::SubmitCommand(Command::SubmitLoremMessages)
                 } else if app.input.starts_with("/quit") {
                     KeyAction::QuitApp
                 } else if app.input.starts_with("/username") {
@@ -248,6 +252,20 @@ fn handle_command(
             //   2. the server needs to handle the change too
             //   3. the rx.try_recv() also has to handle the name change broadcast
         }
+        Command::SubmitLoremMessages => {
+            let prefix = "/lorem ";
+            let num_lines = app.input.trim()[prefix.len()..]
+                .parse::<usize>()
+                .unwrap_or(1);
+
+            app.input.clear();
+
+            for _ in 0..num_lines {
+                let message = LoremRustum::new(28).to_string();
+                let local_message = format!("{}: {}", &app.user.username, message);
+                app.add_user_message(local_message);
+            }
+        }
         Command::SwitchRoomsFromInput => {
             // Note: similar logic to SwitchRoomsFromSelected, except:
             // - use room from input
@@ -308,7 +326,6 @@ fn handle_confirm_room_name_and_join(
     if !app.input_is_valid_room_name() {
         return;
     }
-
     app.room = app.input.clone();
     let request = app.join_request();
     app.set_socket_activity();

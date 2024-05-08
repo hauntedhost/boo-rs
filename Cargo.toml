@@ -12,6 +12,7 @@ crossterm = "0.27.0"
 ezsockets = { version = "0.6.2", features = ["tokio-rustls", "rustls"] }
 fern = "0.6.2"
 log = "0.4.21"
+lorem-rustum = "0.0.5"
 rand = "0.8.5"
 ratatui = "0.26.3-alpha.2"
 regex = "1.10.4"

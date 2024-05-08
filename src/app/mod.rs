@@ -67,7 +67,9 @@ pub struct AppState {
     showing_help: bool,
     socket_activity: bool,
     socket_last_active: Instant,
-    ui_messages_scrollbar_position: usize,
+    pub ui_messages_line_length: usize,
+    pub ui_messages_area_height: usize,
+    pub ui_messages_scrollbar_position: usize,
     ui_selected_room_index: Option<usize>,
     users: Vec<User>,
 }
@@ -95,7 +97,9 @@ impl Default for AppState {
             socket_last_active: Instant::now(),
             socket_url: None,
             ui_focus_area: Focus::default(),
+            ui_messages_line_length: 0,
             ui_messages_scrollbar_position: 0,
+            ui_messages_area_height: 0,
             ui_right_sidebar_view: RightSidebar::default(),
             ui_room_table_state: TableState::default(),
             ui_selected_room_index: None,
@@ -123,29 +127,48 @@ impl AppState {
 
     // messages scrollbar
 
-    pub fn maybe_scroll_messages_down(&mut self) {
-        let current_position = self.ui_messages_scrollbar_position;
-        if current_position + 2 == self.messages.len() {
-            self.ui_messages_scrollbar_position = current_position + 1;
-        }
-    }
-
-    pub fn get_messages_scrollbar_position(&self) -> usize {
+    pub fn get_scrollbar_position(&self) -> usize {
         self.ui_messages_scrollbar_position
     }
 
-    pub fn scroll_messages_up(&mut self) {
-        let current_position = self.ui_messages_scrollbar_position;
-        if current_position >= 1 {
-            self.ui_messages_scrollbar_position = current_position - 1;
+    pub fn set_messages_line_length_and_area_height(
+        &mut self,
+        line_length: usize,
+        area_height: usize,
+    ) {
+        let scrollbar_was_at_bottom = self.is_messages_scrollbar_at_bottom();
+
+        self.ui_messages_line_length = line_length;
+        self.ui_messages_area_height = area_height;
+
+        // TODO: add proportional scrollbar update
+
+        if scrollbar_was_at_bottom {
+            self.ui_messages_scrollbar_position = line_length.saturating_sub(area_height);
         }
     }
 
+    fn is_messages_scrollbar_at_bottom(&self) -> bool {
+        let bottom_position = self
+            .ui_messages_line_length
+            .saturating_sub(self.ui_messages_area_height);
+        self.ui_messages_scrollbar_position == bottom_position
+    }
+
+    pub fn scroll_messages_up(&mut self) {
+        self.update_scroll_position(-1)
+    }
+
     pub fn scroll_messages_down(&mut self) {
-        let current_position = self.ui_messages_scrollbar_position;
-        if current_position + 1 < self.messages.len() {
-            self.ui_messages_scrollbar_position = current_position + 1;
-        }
+        self.update_scroll_position(1)
+    }
+
+    fn update_scroll_position(&mut self, delta: isize) {
+        let new_position = (self.ui_messages_scrollbar_position as isize + delta).max(0) as usize;
+        let max_position = self
+            .ui_messages_line_length
+            .saturating_sub(self.ui_messages_area_height);
+        self.ui_messages_scrollbar_position = new_position.min(max_position);
     }
 
     // socket activity
@@ -383,17 +406,17 @@ impl AppState {
 
     pub fn add_user_message(&mut self, message: String) {
         self.add_message(Message::User(message.clone()));
-        self.maybe_scroll_messages_down()
+        // self.maybe_scroll_messages_down()
     }
 
     pub fn add_system_message(&mut self, message: String) {
         self.add_message(Message::System(message.clone()));
-        self.maybe_scroll_messages_down()
+        // self.maybe_scroll_messages_down()
     }
 
     fn add_message(&mut self, message: Message) {
         self.messages.push(message);
-        self.maybe_scroll_messages_down()
+        // self.maybe_scroll_messages_down()
     }
 
     // logs
