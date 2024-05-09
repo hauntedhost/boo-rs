@@ -50,26 +50,27 @@ pub enum Message {
 
 #[derive(Debug)]
 pub struct AppState {
+    last_heartbeat: Instant,
+    logging_enabled: bool,
+    logs: Vec<String>,
+    messages: Vec<Message>,
     pub input: String,
     pub onboarding: Onboarding,
     pub room: String,
     pub socket_url: Option<String>,
     pub ui_focus_area: Focus,
+    pub ui_input_width: u16,
+    pub ui_messages_area_height: usize,
+    pub ui_messages_line_length: usize,
+    pub ui_messages_scrollbar_position: usize,
     pub ui_right_sidebar_view: RightSidebar,
     pub ui_room_table_state: TableState,
     pub user: User,
-    last_heartbeat: Instant,
-    logging_enabled: bool,
-    logs: Vec<String>,
-    messages: Vec<Message>,
     quitting: bool,
     rooms: Vec<Room>,
     showing_help: bool,
     socket_activity: bool,
     socket_last_active: Instant,
-    pub ui_messages_line_length: usize,
-    pub ui_messages_area_height: usize,
-    pub ui_messages_scrollbar_position: usize,
     ui_selected_room_index: Option<usize>,
     users: Vec<User>,
 }
@@ -97,9 +98,10 @@ impl Default for AppState {
             socket_last_active: Instant::now(),
             socket_url: None,
             ui_focus_area: Focus::default(),
+            ui_input_width: 0,
+            ui_messages_area_height: 0,
             ui_messages_line_length: 0,
             ui_messages_scrollbar_position: 0,
-            ui_messages_area_height: 0,
             ui_right_sidebar_view: RightSidebar::default(),
             ui_room_table_state: TableState::default(),
             ui_selected_room_index: None,
@@ -123,6 +125,10 @@ impl AppState {
         } else {
             false
         }
+    }
+
+    pub fn set_input_width(&mut self, width: u16) {
+        self.ui_input_width = width;
     }
 
     // messages scrollbar

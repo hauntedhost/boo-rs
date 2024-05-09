@@ -1,12 +1,18 @@
+use crate::app::AppState;
+use crate::ui::format::Displayable;
+use crate::ui::format::Format;
+use crate::ui::styles::get_title_style;
+use crate::ui::symbols::*;
 use ratatui::prelude::*;
 use ratatui::widgets::*;
 
-use super::format::Displayable;
-use super::format::Format;
-use super::styles::get_title_style;
-use crate::ui::symbols::*;
+pub fn render_widget(frame: &mut Frame, area: Rect, app: &AppState) {
+    let logs = app.get_logs();
+    let widget = build_widget(area, &logs);
+    frame.render_widget(widget, area);
+}
 
-pub fn build_widget(area: Rect, logs: &Vec<String>) -> List {
+fn build_widget(area: Rect, logs: &Vec<String>) -> List {
     let (log_items, _line_count) = build_list_items(area, logs, 2, json_formatter);
     let title_style = get_title_style();
 

@@ -1,15 +1,28 @@
+use super::scrolbar;
+use crate::app::AppState;
+use crate::ui::format::Displayable;
+use crate::ui::format::Format;
+use crate::ui::math::area_height_minus_border;
+use crate::ui::math::get_wrapped_line_counts;
+use crate::ui::styles::get_title_style;
+use crate::ui::symbols::*;
 use ratatui::prelude::*;
 use ratatui::widgets::*;
 
-use crate::app::AppState;
-use crate::ui::symbols::*;
+pub fn render_widget(frame: &mut Frame, area: Rect, app: &mut AppState) {
+    let widget = build_widget(app, area);
+    frame.render_widget(widget, area);
 
-use super::format::Displayable;
-use super::format::Format;
-use super::math::{area_height_minus_border, get_wrapped_line_counts};
-use super::styles::get_title_style;
+    scrolbar::render_scrollbar(
+        frame,
+        area,
+        app.ui_messages_area_height,
+        app.ui_messages_line_length,
+        app.ui_messages_scrollbar_position,
+    );
+}
 
-pub fn build_widget(app: &mut AppState, area: Rect) -> Paragraph {
+fn build_widget(app: &mut AppState, area: Rect) -> Paragraph {
     let messages = app.get_messages();
     let area_height = area_height_minus_border(area) as usize;
 

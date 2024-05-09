@@ -1,13 +1,20 @@
+use crate::app::AppState;
+use crate::app::Focus;
+use crate::ui::styles::get_selection_style;
+use crate::ui::styles::get_title_style;
+use crate::ui::symbols::*;
 use ratatui::prelude::*;
 use ratatui::widgets::*;
 
-use crate::app::Focus;
-use crate::ui::symbols::*;
+pub fn render_widget(frame: &mut Frame, area: Rect, app: &mut AppState) {
+    let rooms = app.get_rooms_with_counts();
+    let widget = build_widget(&rooms, app.room.clone(), app.ui_focus_area);
+    let selected_room = app.get_selected_or_current_room_index();
+    app.ui_room_table_state.select(selected_room);
+    frame.render_stateful_widget(widget, area, &mut app.ui_room_table_state);
+}
 
-use super::styles::get_selection_style;
-use super::styles::get_title_style;
-
-pub fn build_widget(rooms: &Vec<(String, u32)>, current_room: String, focus: Focus) -> Table {
+fn build_widget(rooms: &Vec<(String, u32)>, current_room: String, focus: Focus) -> Table {
     let mut rows: Vec<Row> = vec![];
     for (room_name, user_count) in rooms {
         let room_name = format!("{room_name}");

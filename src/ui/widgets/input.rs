@@ -1,11 +1,10 @@
-use ratatui::prelude::*;
-use ratatui::widgets::*;
-
 use crate::app::AppState;
 use crate::app::Focus;
 use crate::app::Onboarding;
+use ratatui::prelude::*;
+use ratatui::widgets::*;
 
-pub fn build_widget(app: &AppState) -> (Paragraph, u16) {
+pub fn render_widget(frame: &mut Frame, area: Rect, app: &mut AppState) {
     let input_width: u16;
 
     let input_paragraph = match app.onboarding {
@@ -70,11 +69,12 @@ pub fn build_widget(app: &AppState) -> (Paragraph, u16) {
         Style::new().dim()
     };
 
-    let input_block = input_paragraph.block(
+    let widget = input_paragraph.block(
         Block::default()
             .borders(Borders::ALL)
             .border_style(border_style),
     );
 
-    (input_block, input_width)
+    app.set_input_width(input_width);
+    frame.render_widget(widget, area);
 }

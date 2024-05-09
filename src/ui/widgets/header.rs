@@ -1,10 +1,22 @@
+use crate::app::AppState;
+use crate::app::Onboarding;
+use crate::ui::symbols::*;
 use ratatui::prelude::*;
 use ratatui::widgets::*;
 
-use crate::app::Onboarding;
-use crate::ui::symbols::*;
+pub fn render_widget(frame: &mut Frame, area: Rect, app: &AppState) {
+    let widget = build_widget(
+        app.input.clone(),
+        app.get_username(),
+        app.room.clone(),
+        app.onboarding,
+        app.socket_url.clone(),
+        app.is_socket_active(),
+    );
+    frame.render_widget(widget, area);
+}
 
-pub fn build_widget(
+fn build_widget(
     input: String,
     username: String,
     room: String,
