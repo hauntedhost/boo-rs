@@ -38,9 +38,9 @@ pub enum RightSidebar {
     Logs,
 }
 
-// TODO: Add Json(String) to enum
 #[derive(Clone, Debug)]
 pub enum Message {
+    // Json(String),
     System(String),
     User(String),
 }
