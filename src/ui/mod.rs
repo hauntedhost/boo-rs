@@ -3,6 +3,8 @@ pub mod header;
 pub mod help;
 pub mod input;
 pub mod logs;
+pub mod math;
+pub mod messages;
 pub mod rooms;
 pub mod styles;
 pub mod symbols;
@@ -12,11 +14,6 @@ use ratatui::prelude::*;
 use ratatui::widgets::*;
 
 use crate::app::{AppState, RightSidebar};
-use crate::ui::symbols::*;
-// use self::render_format::Format;
-
-use self::format::{Displayable, Format};
-use self::styles::get_title_style;
 
 /// This module contains all code for rendering the UI within the main app loop.
 
@@ -98,59 +95,15 @@ pub fn render(frame: &mut Frame, app: &mut AppState) {
     frame.render_widget(users_widget, left_sidebar_area);
 
     // messages area
-    let message_area_height = area_height_minus_border(messages_area) as usize;
-    let messages = app.get_messages();
-
-    // TODO: move this back to build_users_widget
-    // ------------------------------------------
-    let styled_messages: Vec<Line> = messages
-        .iter()
-        .map(|message| match message.format() {
-            Format::SystemMessage => Line::from(Span::styled(
-                message.display().to_string(),
-                Style::default().italic().dim(),
-            )),
-            Format::UserMessage => {
-                let text = message.display().to_string();
-                let index = text.find(": ").expect("expected ':' in message");
-                let username = text[..index + 1].to_string();
-                let message = text[index + 1..].to_string();
-                Line::from(vec![
-                    Span::styled(username, Style::default().light_green()),
-                    Span::raw(message),
-                ])
-            }
-            _ => Line::from(Span::raw(message.display().to_string())),
-        })
-        .collect();
-
-    // let plain_messages: Vec<Line> = messages
-    //     .iter()
-    //     .map(|message| Line::from(Span::raw(message.display().to_string())))
-    //     .collect();
-
-    let wrapped_line_counts = get_wrapped_line_counts(messages_area, &messages);
-    let wrapped_line_count: usize = wrapped_line_counts.iter().sum();
-
-    app.set_messages_line_length_and_area_height(wrapped_line_count, message_area_height);
-    let scrollbar_position = app.get_scrollbar_position();
-
-    let messages_widget = Paragraph::new(styled_messages)
-        .wrap(Wrap { trim: false })
-        .scroll((scrollbar_position as u16, 0))
-        .block(
-            Block::default()
-                // .padding(padding)
-                .borders(Borders::ALL)
-                .border_style(Style::new().dim())
-                .title(format!(" {CHAT_SYMBOL} Chat "))
-                .title_style(get_title_style()),
-        );
-    // ------------------------------------------
+    let messages_widget = messages::build_widget(app, messages_area);
     frame.render_widget(messages_widget, messages_area);
 
     // TODO: try to move this to messages.rs into build_scrollbar or something
     // -----------------------------------------------------------------------
+    let messages_area_height = app.ui_messages_area_height;
+    let messages_line_length = app.ui_messages_line_length;
+    let scrollbar_position = app.ui_messages_scrollbar_position;
+
     let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
         .begin_symbol(Some("↑"))
         .end_symbol(Some("↓"))
@@ -158,9 +111,9 @@ pub fn render(frame: &mut Frame, app: &mut AppState) {
 
     // conditionally show scrollbar
     // scrollbar is only visible if content_length > 0
-    let content_length = if wrapped_line_count >= message_area_height {
-        wrapped_line_count
-            .checked_sub(message_area_height)
+    let content_length = if messages_line_length >= messages_area_height {
+        messages_line_length
+            .checked_sub(messages_area_height)
             .unwrap_or(0)
     } else {
         0
@@ -209,26 +162,4 @@ pub fn render(frame: &mut Frame, app: &mut AppState) {
     let x = input_area.x + 1 + input_width;
     let y = input_area.y + 1;
     frame.set_cursor(x, y);
-}
-
-fn area_height_minus_border(area: Rect) -> u16 {
-    area.height.checked_sub(2).unwrap_or(0)
-}
-
-fn area_width_minus_border(area: Rect) -> u16 {
-    area.width.checked_sub(2).unwrap_or(0)
-}
-
-fn get_wrapped_line_counts<T>(area: Rect, items: &[T]) -> Vec<usize>
-where
-    T: Displayable,
-{
-    let width = area_width_minus_border(area) as usize;
-    let mut line_counts = vec![];
-    for item in items.iter() {
-        let text = item.display().to_string();
-        let wrapped_texts = textwrap::wrap(&text, width);
-        line_counts.push(wrapped_texts.len());
-    }
-    line_counts
 }
