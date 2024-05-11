@@ -104,8 +104,14 @@ pub fn render(frame: &mut Frame, app: &mut AppState) {
     input::render_widget(frame, input_area, app);
 
     // Cursor
+    // Clamp x poition to input area width (see input::render_widget for horizontal scroll logic)
+    let input_area_width = input_area.width - 2;
+    let x = if app.ui_input_width >= input_area_width {
+        input_area.x + input_area_width
+    } else {
+        input_area.x + 1 + app.ui_input_width
+    };
 
-    let x = input_area.x + 1 + app.ui_input_width;
     let y = input_area.y + 1;
     frame.set_cursor(x, y);
 }

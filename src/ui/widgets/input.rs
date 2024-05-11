@@ -69,7 +69,15 @@ pub fn render_widget(frame: &mut Frame, area: Rect, app: &mut AppState) {
         Style::new().dim()
     };
 
-    let widget = input_paragraph.block(
+    // Horizontal scroll when input extends past area width
+    let area_width = area.width - 2;
+    let horizontal_scroll = if input_width > area_width {
+        input_width - area_width
+    } else {
+        0
+    };
+
+    let widget = input_paragraph.scroll((0, horizontal_scroll)).block(
         Block::default()
             .borders(Borders::ALL)
             .border_style(border_style),
