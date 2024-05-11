@@ -7,8 +7,11 @@ use std::collections::HashMap;
 /// This module contains logic for parsing JSON from the server.
 /// Response struct exposes a single `new_from_json_string` fn which takes a JSON string and returns a `Response` enum.
 
+// TODO: handle PhxReply messages:
+// [null,3,"phoenix","phx_reply",{"status":"ok","response":{}}]
+
 // The Response enum we will build based on the event type
-#[derive(Default, Debug)]
+#[derive(Clone, Default, Debug)]
 pub enum Response {
     #[default]
     Unknown,
@@ -71,18 +74,18 @@ impl Response {
     }
 }
 
-#[derive(Default, Serialize, Deserialize, Debug)]
+#[derive(Clone, Default, Serialize, Deserialize, Debug)]
 pub struct JoinReply {
     pub user: User,
 }
 
-#[derive(Default, Debug)]
+#[derive(Clone, Default, Debug)]
 pub struct PresenceDiff {
     pub joins: Vec<User>,
     pub leaves: Vec<User>,
 }
 
-#[derive(Default, Serialize, Deserialize, Debug)]
+#[derive(Clone, Default, Serialize, Deserialize, Debug)]
 pub struct PresenceState {
     pub users: Vec<User>,
 }
@@ -91,7 +94,7 @@ pub type RoomsUpdate = Vec<Room>;
 
 // Private
 
-#[derive(Default, Serialize, Deserialize, Debug)]
+#[derive(Clone, Default, Serialize, Deserialize, Debug)]
 pub struct Shout {
     pub user: User,
     pub message: String,

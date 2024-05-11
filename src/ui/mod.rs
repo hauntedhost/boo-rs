@@ -49,7 +49,7 @@ pub fn render(frame: &mut Frame, app: &mut AppState) {
     let (left_sidebar_width, messages_width, right_sidebar_width) = match app.ui_right_sidebar_view
     {
         RightSidebar::Rooms => (22, 56, 22),
-        RightSidebar::Logs => (25, 40, 35),
+        RightSidebar::Logs => (15, 30, 55),
     };
 
     let main_layout = Layout::default()

@@ -1,38 +1,57 @@
 pub mod client;
 pub mod message;
+pub mod refs;
 pub mod request;
 pub mod response;
 
 use crate::app::AppState;
 use crate::socket::client::Client;
 use ezsockets::ClientConfig;
-use log::info;
 use std::env;
 use std::future::Future;
 use tokio::sync::mpsc;
 use url::Url;
 
+use self::client::SocketEvent;
+
 const DEFAULT_URL: &str = "wss://chat.haunted.host";
 const DEV_URL: &str = "ws://localhost:4000";
 
-pub fn create_channel() -> (mpsc::Sender<String>, mpsc::Receiver<String>) {
-    mpsc::channel::<String>(32)
+pub fn create_channel() -> (mpsc::Sender<SocketEvent>, mpsc::Receiver<SocketEvent>) {
+    mpsc::channel::<SocketEvent>(32)
 }
 
 pub async fn connect_socket(
-    tx: mpsc::Sender<String>,
+    tx: mpsc::Sender<SocketEvent>,
     app: &mut AppState,
 ) -> (
     ezsockets::Client<Client>,
     impl Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>>,
 ) {
     let socket_url = get_socket_url();
+    log::info!("connecting to websocket {} ...", socket_url);
+
     let config = ClientConfig::new(socket_url.clone());
     app.set_socket_url(socket_url.clone());
-
-    info!("connecting to websocket {} ...", socket_url);
-
     ezsockets::connect(|handle| Client::new(handle, tx), config).await
+}
+
+pub fn close_socket(handle: ezsockets::Client<Client>) -> std::io::Result<()> {
+    log::info!("closing websocket");
+
+    match handle.close(None) {
+        Ok(_) => {
+            log::info!("websocket closed");
+            Ok(())
+        }
+        Err(e) => {
+            log::error!("failed to close socket={:?}", e);
+            Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("failed to close socket={:?}", e),
+            ))
+        }
+    }
 }
 
 fn get_socket_url() -> Url {

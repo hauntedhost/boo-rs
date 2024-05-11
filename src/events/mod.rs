@@ -1,9 +1,9 @@
+mod channel;
 mod keyboard;
-mod socket;
+use self::channel::handle_socket_event;
 use self::keyboard::handle_key_event;
-use self::socket::handle_message_event;
-use crate::app::AppState;
 use crate::socket::client;
+use crate::{app::AppState, socket::client::SocketEvent};
 use crossterm::event::{self, Event};
 use log::error;
 use tokio::sync::mpsc::{self, Receiver};
@@ -15,11 +15,12 @@ use tokio::sync::mpsc::{self, Receiver};
 
 pub fn handle_events(
     handle: &ezsockets::Client<client::Client>,
-    rx: &mut Receiver<String>,
+    rx: &mut Receiver<SocketEvent>,
     app: &mut AppState,
 ) -> std::io::Result<()> {
-    app.tick_socket_socket_activity();
+    app.tick_socket_activity();
 
+    // Heartbeat
     if app.update_heartbeat_timer() {
         let heartbeat_request = app.heartbeat_request();
         app.set_socket_activity();
@@ -28,7 +29,7 @@ pub fn handle_events(
 
     // Handle incoming messages from the socket
     match rx.try_recv() {
-        Ok(message_payload) => handle_message_event(app, message_payload),
+        Ok(socket_event) => handle_socket_event(app, socket_event),
         Err(mpsc::error::TryRecvError::Empty) => (),
         Err(error) => error!("rx.try_recv error: {:?}", error),
     }

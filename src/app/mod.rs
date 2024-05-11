@@ -43,18 +43,24 @@ pub enum Message {
     User(String),
 }
 
+#[derive(Clone, Debug, Default, PartialEq)]
+pub enum SocketStatus {
+    #[default]
+    Closed,
+    Connected,
+    ConnectFailed,
+    Disconnected,
+}
+
 // TODO: store users and rooms as HashMap<String, User/Room> to allow for quick adds and removes
 // TODO: nest ui state in a struct
 
 #[derive(Debug)]
 pub struct AppState {
-    last_heartbeat: Instant,
-    logging_enabled: bool,
-    logs: Vec<Log>,
-    messages: Vec<Message>,
     pub input: String,
     pub onboarding: Onboarding,
     pub room: String,
+    pub socket_status: SocketStatus,
     pub socket_url: Option<String>,
     pub ui_focus_area: Focus,
     pub ui_input_width: u16,
@@ -64,6 +70,10 @@ pub struct AppState {
     pub ui_right_sidebar_view: RightSidebar,
     pub ui_room_table_state: TableState,
     pub user: User,
+    last_heartbeat: Instant,
+    logging_enabled: bool,
+    logs: Vec<Log>,
+    messages: Vec<Message>,
     quitting: bool,
     rooms: Vec<Room>,
     showing_help: bool,
@@ -94,6 +104,7 @@ impl Default for AppState {
             showing_help: false,
             socket_activity: false,
             socket_last_active: Instant::now(),
+            socket_status: SocketStatus::default(),
             socket_url: None,
             ui_focus_area: Focus::default(),
             ui_input_width: 0,
@@ -186,7 +197,7 @@ impl AppState {
         self.socket_last_active = Instant::now();
     }
 
-    pub fn tick_socket_socket_activity(&mut self) {
+    pub fn tick_socket_activity(&mut self) {
         if self.socket_activity && self.socket_last_active.elapsed() >= SOCKET_ACTIVITY_DURATION {
             self.socket_activity = false;
         }

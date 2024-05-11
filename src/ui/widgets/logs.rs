@@ -1,4 +1,5 @@
 use crate::app::AppState;
+use crate::socket::response::Response as SocketResponse;
 use crate::ui::format::Displayable;
 use crate::ui::styles::get_title_style;
 use crate::ui::symbols::*;
@@ -7,8 +8,10 @@ use ratatui::widgets::*;
 
 #[derive(Clone, Default, Debug)]
 pub struct Log {
-    pub json_payload: String,
+    pub response: SocketResponse,
 }
+
+// TODO: try building a wrapped paragraph now that logs are structs not json
 
 pub fn render_widget(frame: &mut Frame, area: Rect, app: &AppState) {
     let logs = app.get_logs();

@@ -7,7 +7,7 @@ mod ui;
 use crate::app::AppState;
 use crate::events::handle_events;
 use crate::logging::setup_logging;
-use crate::socket::{connect_socket, create_channel};
+use crate::socket::{close_socket, connect_socket, create_channel};
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
@@ -46,6 +46,7 @@ async fn main() -> std::io::Result<()> {
     }
 
     // cleanup
+    close_socket(handle)?;
     disable_raw_mode()?;
     stdout().execute(LeaveAlternateScreen)?;
 

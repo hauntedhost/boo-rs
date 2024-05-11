@@ -1,5 +1,5 @@
+use super::refs::Refs;
 use crate::app::user::User;
-use crate::socket::client::Refs;
 use crate::socket::message::Message as SocketMessage;
 use serde_json::{json, Value as SerdeValue};
 

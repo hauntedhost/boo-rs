@@ -1,5 +1,6 @@
 use crate::app::AppState;
 use crate::app::Onboarding;
+use crate::app::SocketStatus;
 use crate::ui::symbols::*;
 use ratatui::prelude::*;
 use ratatui::widgets::*;
@@ -11,6 +12,7 @@ pub fn render_widget(frame: &mut Frame, area: Rect, app: &AppState) {
         app.room.clone(),
         app.onboarding,
         app.socket_url.clone(),
+        app.socket_status.clone(),
         app.is_socket_active(),
     );
     frame.render_widget(widget, area);
@@ -22,6 +24,7 @@ fn build_widget(
     room: String,
     onboarding: Onboarding,
     socket_url: Option<String>,
+    socket_status: SocketStatus,
     is_socket_active: bool,
 ) -> Table<'static> {
     let socket_url = socket_url.unwrap_or_else(|| "".to_string());
@@ -38,10 +41,17 @@ fn build_widget(
         Onboarding::Completed => (username, format!(" {HASH_SYMBOL} "), room),
     };
 
-    let socket_style = if is_socket_active {
-        Style::default().light_blue().not_dim().slow_blink()
+    let socket_symbol = if is_socket_active {
+        SOCKET_ACTIVE_SYMBOL
     } else {
-        Style::default().light_blue()
+        SOCKET_STATUS_SYMBOL
+    };
+
+    let socket_style = match socket_status {
+        SocketStatus::Closed => Style::default().dim(),
+        SocketStatus::Connected => Style::default().light_blue().bold(),
+        SocketStatus::ConnectFailed => Style::default().light_red().not_dim(),
+        SocketStatus::Disconnected => Style::default().light_red().not_dim(),
     };
 
     let row = Row::new(vec![
@@ -58,7 +68,7 @@ fn build_widget(
         ),
         Cell::from(
             Line::from(vec![
-                Span::styled(format!("{SOCKET_SYMBOL} "), socket_style),
+                Span::styled(format!("{socket_symbol} "), socket_style),
                 Span::raw(socket_url),
             ])
             .alignment(Alignment::Right),

@@ -25,10 +25,7 @@ impl Displayable for String {
 
 impl Displayable for Log {
     fn display(&self) -> String {
-        let payload = self.json_payload.clone();
-        let json: serde_json::Value = serde_json::from_str(&payload).unwrap();
-        let pretty_json = serde_json::to_string_pretty(&json).unwrap().clone();
-        let formatted_log = format!("—\n{}", pretty_json.trim());
+        let formatted_log = format!("{:?}\n", self.response);
         formatted_log
     }
 
