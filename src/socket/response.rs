@@ -1,18 +1,17 @@
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-
 use crate::app::room::Room;
 use crate::app::user::User;
 use crate::socket::message::Message;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// This module contains logic for parsing JSON from the server.
-/// It exposes a single `parse_response` fn which takes a JSON string and returns a `Response` enum.
+/// Response struct exposes a single `new_from_json_string` fn which takes a JSON string and returns a `Response` enum.
 
-// The response enum we will build based on the event type
+// The Response enum we will build based on the event type
 #[derive(Default, Debug)]
 pub enum Response {
     #[default]
-    Null,
+    Unknown,
     JoinReply(JoinReply),
     RoomsUpdate(RoomsUpdate),
     Shout(Shout),
@@ -20,17 +19,61 @@ pub enum Response {
     PresenceState(PresenceState),
 }
 
+impl Response {
+    pub fn new_from_json_string(json_data: &str) -> Self {
+        let Ok(message) = Message::new_from_json_string(json_data) else {
+            return Response::Unknown;
+        };
+
+        return match message.event.as_str() {
+            "phx_reply" => {
+                // currently only handling phx_join response.event
+                if let Ok(reply) = serde_json::from_value::<RawReply>(message.payload) {
+                    if reply.response.event == "phx_join" {
+                        return Response::JoinReply(JoinReply {
+                            user: reply.response.user,
+                        });
+                    }
+                }
+                Response::Unknown
+            }
+            "presence_diff" => {
+                let raw_diff = serde_json::from_value::<RawPresenceDiff>(message.payload).unwrap();
+                let joins = extract_first_users(raw_diff.joins);
+                let leaves = extract_first_users(raw_diff.leaves);
+                Response::PresenceDiff(PresenceDiff { joins, leaves })
+            }
+            "presence_state" => {
+                let raw_state =
+                    serde_json::from_value::<RawPresenceState>(message.payload).unwrap();
+                let users = extract_first_users(raw_state);
+                Response::PresenceState(PresenceState { users })
+            }
+            "rooms_update" => {
+                let rooms_update =
+                    serde_json::from_value::<RawRoomsUpdate>(message.payload).unwrap();
+                let rooms: Vec<Room> = rooms_update
+                    .rooms
+                    .iter()
+                    .map(|room_update| Room {
+                        name: room_update.0.clone(),
+                        user_count: room_update.1,
+                    })
+                    .collect();
+                Response::RoomsUpdate(rooms)
+            }
+            "shout" => {
+                let shout = serde_json::from_value::<Shout>(message.payload).unwrap();
+                Response::Shout(shout)
+            }
+            _ => Response::Unknown,
+        };
+    }
+}
+
 #[derive(Default, Serialize, Deserialize, Debug)]
 pub struct JoinReply {
     pub user: User,
-}
-
-pub type RoomsUpdate = Vec<Room>;
-
-#[derive(Default, Serialize, Deserialize, Debug)]
-pub struct Shout {
-    pub user: User,
-    pub message: String,
 }
 
 #[derive(Default, Debug)]
@@ -42,6 +85,16 @@ pub struct PresenceDiff {
 #[derive(Default, Serialize, Deserialize, Debug)]
 pub struct PresenceState {
     pub users: Vec<User>,
+}
+
+pub type RoomsUpdate = Vec<Room>;
+
+// Private
+
+#[derive(Default, Serialize, Deserialize, Debug)]
+pub struct Shout {
+    pub user: User,
+    pub message: String,
 }
 
 #[derive(Default, Serialize, Deserialize, Debug)]
@@ -77,56 +130,6 @@ type RawPresenceState = HashMap<String, UserPresence>;
 #[derive(Serialize, Deserialize, Debug)]
 struct UserPresence {
     metas: Vec<User>,
-}
-
-pub fn parse_response(json_data: &str) -> Response {
-    let Ok(message) = Message::parse_response(json_data) else {
-        return Response::Null;
-    };
-
-    match message.event.as_str() {
-        "phx_reply" => {
-            // currently only handling phx_join response.event
-            if let Ok(reply) = serde_json::from_value::<RawReply>(message.payload) {
-                if reply.response.event == "phx_join" {
-                    return Response::JoinReply(JoinReply {
-                        user: reply.response.user,
-                    });
-                }
-            }
-            return Response::Null;
-        }
-        "shout" => {
-            let shout = serde_json::from_value::<Shout>(message.payload).unwrap();
-            return Response::Shout(shout);
-        }
-        "rooms_update" => {
-            let rooms_update = serde_json::from_value::<RawRoomsUpdate>(message.payload).unwrap();
-            let rooms: Vec<Room> = rooms_update
-                .rooms
-                .iter()
-                .map(|room_update| Room {
-                    name: room_update.0.clone(),
-                    user_count: room_update.1,
-                })
-                .collect();
-            return Response::RoomsUpdate(rooms);
-        }
-        "presence_diff" => {
-            let raw_diff = serde_json::from_value::<RawPresenceDiff>(message.payload).unwrap();
-            let joins = extract_first_users(raw_diff.joins);
-            let leaves = extract_first_users(raw_diff.leaves);
-            return Response::PresenceDiff(PresenceDiff { joins, leaves });
-        }
-        "presence_state" => {
-            let raw_state = serde_json::from_value::<RawPresenceState>(message.payload).unwrap();
-            let users = extract_first_users(raw_state);
-            return Response::PresenceState(PresenceState { users });
-        }
-        _ => {
-            return Response::Null;
-        }
-    }
 }
 
 // A user can be "present" from multiple devices, we only care about the first one right now

@@ -1,15 +1,14 @@
 pub mod room;
 pub mod user;
-
+use crate::app::{room::Room, user::User};
+use crate::names::generate_room_name;
+use crate::socket::request::Request;
+use crate::ui::widgets::logs::Log;
 use ratatui::widgets::TableState;
 use regex::Regex;
 use std::env;
 use std::time::{Duration, Instant};
 use url::Url;
-
-use crate::app::{room::Room, user::User};
-use crate::names::generate_room_name;
-use crate::socket::request::Request;
 
 /// This module contains the AppState struct used to store the state of the application.
 
@@ -40,7 +39,6 @@ pub enum RightSidebar {
 
 #[derive(Clone, Debug)]
 pub enum Message {
-    // Json(String),
     System(String),
     User(String),
 }
@@ -52,7 +50,7 @@ pub enum Message {
 pub struct AppState {
     last_heartbeat: Instant,
     logging_enabled: bool,
-    logs: Vec<String>,
+    logs: Vec<Log>,
     messages: Vec<Message>,
     pub input: String,
     pub onboarding: Onboarding,
@@ -427,11 +425,11 @@ impl AppState {
 
     // logs
 
-    pub fn get_logs(&self) -> Vec<String> {
+    pub fn get_logs(&self) -> Vec<Log> {
         self.logs.clone()
     }
 
-    pub fn append_log(&mut self, log: String) {
+    pub fn append_log(&mut self, log: Log) {
         if self.logging_enabled {
             self.logs.push(log);
         }

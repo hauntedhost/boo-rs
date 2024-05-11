@@ -4,7 +4,10 @@ mod logging;
 mod names;
 mod socket;
 mod ui;
-
+use crate::app::AppState;
+use crate::events::handle_events;
+use crate::logging::setup_logging;
+use crate::socket::{connect_socket, create_channel};
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
@@ -12,11 +15,6 @@ use crossterm::ExecutableCommand;
 use log::info;
 use ratatui::prelude::*;
 use std::io::stdout;
-
-use crate::app::AppState;
-use crate::events::handle_events;
-use crate::logging::setup_logging;
-use crate::socket::{connect_socket, create_channel};
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {

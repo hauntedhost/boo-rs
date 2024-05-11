@@ -1,8 +1,7 @@
+use crate::names::generate_username;
 use serde::{Deserialize, Serialize};
 use std::env;
 use uuid::Uuid;
-
-use crate::names::generate_username;
 
 #[derive(Default, Clone, Serialize, Deserialize, Debug)]
 pub struct User {

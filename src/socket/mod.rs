@@ -3,15 +3,14 @@ pub mod message;
 pub mod request;
 pub mod response;
 
+use crate::app::AppState;
+use crate::socket::client::Client;
 use ezsockets::ClientConfig;
 use log::info;
 use std::env;
 use std::future::Future;
 use tokio::sync::mpsc;
 use url::Url;
-
-use crate::app::AppState;
-use crate::socket::client::Client;
 
 const DEFAULT_URL: &str = "wss://chat.haunted.host";
 const DEV_URL: &str = "ws://localhost:4000";

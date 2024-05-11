@@ -1,15 +1,12 @@
 mod keyboard;
 mod socket;
-
+use self::keyboard::handle_key_event;
+use self::socket::handle_message_event;
+use crate::app::AppState;
+use crate::socket::client;
 use crossterm::event::{self, Event};
 use log::error;
 use tokio::sync::mpsc::{self, Receiver};
-
-use crate::app::AppState;
-use crate::socket::client;
-
-use self::keyboard::handle_key_event;
-use self::socket::handle_message_event;
 
 /// This module contains code for handling events within the main app loop.
 /// It exposes a single `handle_events` function which handles both:

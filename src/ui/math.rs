@@ -1,6 +1,5 @@
-use ratatui::prelude::*;
-
 use super::format::Displayable;
+use ratatui::prelude::*;
 
 pub fn area_height_minus_border(area: Rect) -> u16 {
     area.height.checked_sub(2).unwrap_or(0)

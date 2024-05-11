@@ -1,10 +1,9 @@
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use log::{debug, error};
-use lorem_rustum::LoremRustum;
-
 use crate::app::{is_blank, AppState, Focus, Onboarding, RightSidebar};
 use crate::names::{generate_room_name, generate_username};
 use crate::socket::client;
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use log::{debug, error};
+use lorem_rustum::LoremRustum;
 
 #[derive(Debug, Default)]
 enum Command {

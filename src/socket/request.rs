@@ -1,8 +1,7 @@
-use serde_json::{json, Value as SerdeValue};
-
 use crate::app::user::User;
 use crate::socket::client::Refs;
-use crate::socket::message::Message;
+use crate::socket::message::Message as SocketMessage;
+use serde_json::{json, Value as SerdeValue};
 
 // This module contains the Request struct used to create requests to be sent to the server.
 
@@ -49,7 +48,7 @@ impl Request {
     }
 
     pub fn to_payload(&self, refs: Refs) -> String {
-        let message = Message {
+        let message = SocketMessage {
             join_ref: Some(refs.get_join_ref()),
             message_ref: Some(refs.get_message_ref()),
             topic: self.topic.clone(),
@@ -58,7 +57,7 @@ impl Request {
         };
 
         message
-            .serialize_request()
+            .serialize_to_json_string()
             .expect("Problem serializing message")
     }
 }
