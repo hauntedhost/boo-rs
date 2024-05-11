@@ -1,7 +1,7 @@
 pub mod room;
 pub mod user;
 use crate::app::{room::Room, user::User};
-use crate::names::generate_room_name;
+use crate::names::generate_valid_room_name;
 use crate::socket::request::Request;
 use crate::ui::widgets::logs::Log;
 use ratatui::widgets::TableState;
@@ -494,6 +494,6 @@ pub fn is_blank(s: &str) -> bool {
 fn room_from_env_or_generate() -> String {
     match env::var("ROOM") {
         Ok(room) => room,
-        Err(_) => generate_room_name(),
+        Err(_) => generate_valid_room_name(),
     }
 }

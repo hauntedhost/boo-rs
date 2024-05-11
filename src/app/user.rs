@@ -1,4 +1,4 @@
-use crate::names::{generate_username, generate_uuid};
+use crate::names::{generate_uuid, generate_valid_username};
 use serde::{Deserialize, Serialize};
 use std::env;
 
@@ -22,7 +22,7 @@ impl User {
     pub fn new_from_env_or_generate() -> Self {
         match env::var("NAME") {
             Ok(username) => Self::new(username),
-            Err(_) => Self::new(generate_username()),
+            Err(_) => Self::new(generate_valid_username()),
         }
     }
 

@@ -1,5 +1,5 @@
 use crate::app::{is_blank, AppState, Focus, Onboarding, RightSidebar};
-use crate::names::{generate_room_name, generate_username};
+use crate::names::{generate_valid_room_name, generate_valid_username};
 use crate::socket::client;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use log::{debug, error};
@@ -350,11 +350,11 @@ fn handle_confirm_username(app: &mut AppState) {
 }
 
 fn set_input_to_random_room(app: &mut AppState) {
-    app.room = generate_room_name();
+    app.room = generate_valid_room_name();
     app.input = app.room.clone();
 }
 
 fn set_input_to_random_username(app: &mut AppState) {
-    app.user.username = generate_username();
+    app.user.username = generate_valid_username();
     app.input = app.user.username.clone();
 }
