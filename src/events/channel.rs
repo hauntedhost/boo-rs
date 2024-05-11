@@ -31,12 +31,12 @@ pub fn handle_socket_event(app: &mut AppState, socket_event: SocketEvent) {
                     for user in diff.joins {
                         let message = format!("@{} has joined #{}", user.username, app.room);
                         app.add_user(user);
-                        app.add_system_message(message);
+                        app.add_system_public_message(message);
                     }
                     for user in diff.leaves {
                         let message = format!("{} has left {}", user.username, app.room);
                         app.remove_user(user);
-                        app.add_system_message(message);
+                        app.add_system_public_message(message);
                     }
                 }
                 Response::PresenceState(state) => {

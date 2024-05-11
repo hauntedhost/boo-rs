@@ -299,9 +299,13 @@ fn handle_command(
                     app.set_socket_activity();
                     match handle.call(leave_request) {
                         Ok(_) => {
+                            let message = format!("joining #{}", new_room);
+                            app.add_system_internal_message(message);
+
                             let join_request = app.join_new_room_request(new_room.clone());
                             app.set_socket_activity();
                             handle.call(join_request).expect("join error");
+
                             app.room = new_room;
                             app.set_selected_to_current_room();
                             app.ui_focus_area = Focus::Input;
@@ -326,6 +330,10 @@ fn handle_confirm_room_name_and_join(
         return;
     }
     app.room = app.input.clone();
+
+    let message = format!("joining #{}", app.room);
+    app.add_system_internal_message(message);
+
     let request = app.join_request();
     app.set_socket_activity();
     handle.call(request).expect("join error");

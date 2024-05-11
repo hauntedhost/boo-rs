@@ -29,9 +29,16 @@ fn build_widget(app: &mut AppState, area: Rect) -> Paragraph {
     let styled_messages: Vec<Line> = messages
         .iter()
         .map(|message| match message.format() {
-            Format::SystemMessage => Line::from(Span::styled(
-                message.display().to_string(),
+            Format::SystemInternalMessage => Line::from(Span::styled(
+                format!(
+                    "{} {INTERNAL_MESSAGE_SYMBOL}",
+                    message.display().to_string()
+                ),
                 Style::default().italic().dim(),
+            )),
+            Format::SystemPublicMessage => Line::from(Span::styled(
+                format!("{}", message.display().to_string()),
+                Style::default().light_blue().italic(),
             )),
             Format::UserMessage => {
                 let text = message.display().to_string();

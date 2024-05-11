@@ -4,7 +4,8 @@ use crate::app::Message as AppMessage;
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Format {
     Plaintext,
-    SystemMessage,
+    SystemInternalMessage,
+    SystemPublicMessage,
     UserMessage,
 }
 
@@ -37,13 +38,16 @@ impl Displayable for Log {
 impl Displayable for AppMessage {
     fn display(&self) -> String {
         match self {
-            AppMessage::System(message) | AppMessage::User(message) => message.to_string(),
+            AppMessage::SystemInternal(message)
+            | AppMessage::SystemPublic(message)
+            | AppMessage::User(message) => message.to_string(),
         }
     }
 
     fn format(&self) -> Format {
         match self {
-            AppMessage::System(_) => Format::SystemMessage,
+            AppMessage::SystemInternal(_) => Format::SystemInternalMessage,
+            AppMessage::SystemPublic(_) => Format::SystemPublicMessage,
             AppMessage::User(_) => Format::UserMessage,
         }
     }

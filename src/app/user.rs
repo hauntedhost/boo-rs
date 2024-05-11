@@ -18,7 +18,7 @@ impl User {
         }
     }
 
-    // Create a new user from USERNAME env var otherwise generate a guest username
+    // Create a new user from NAME env var otherwise generate a guest username
     pub fn new_from_env_or_generate() -> Self {
         match env::var("NAME") {
             Ok(username) => Self::new(username),

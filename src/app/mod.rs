@@ -39,7 +39,8 @@ pub enum RightSidebar {
 
 #[derive(Clone, Debug)]
 pub enum Message {
-    System(String),
+    SystemInternal(String),
+    SystemPublic(String),
     User(String),
 }
 
@@ -424,8 +425,13 @@ impl AppState {
         // self.maybe_scroll_messages_down()
     }
 
-    pub fn add_system_message(&mut self, message: String) {
-        self.add_message(Message::System(message.clone()));
+    pub fn add_system_internal_message(&mut self, message: String) {
+        self.add_message(Message::SystemInternal(message.clone()));
+        // self.maybe_scroll_messages_down()
+    }
+
+    pub fn add_system_public_message(&mut self, message: String) {
+        self.add_message(Message::SystemPublic(message.clone()));
         // self.maybe_scroll_messages_down()
     }
 

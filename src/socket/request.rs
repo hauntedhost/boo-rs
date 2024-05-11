@@ -7,11 +7,12 @@ use serde_json::{json, Value as SerdeValue};
 
 const TOPIC_PREFIX: &str = "relay:";
 
-#[derive(Debug)]
+// TODO: maybe Request should be an enum, e.g. Heartbeat, Join, Leave, Shout
+#[derive(Clone, Debug)]
 pub struct Request {
-    topic: String,
-    event: String,
+    pub event: String,
     payload: SerdeValue,
+    topic: String,
 }
 
 impl Request {
