@@ -1,7 +1,6 @@
-use crate::names::generate_username;
+use crate::names::{generate_username, generate_uuid};
 use serde::{Deserialize, Serialize};
 use std::env;
-use uuid::Uuid;
 
 #[derive(Default, Clone, Serialize, Deserialize, Debug)]
 pub struct User {
@@ -13,7 +12,7 @@ pub struct User {
 impl User {
     pub fn new(username: String) -> Self {
         Self {
-            uuid: Uuid::new_v4().to_string(),
+            uuid: generate_uuid(),
             username,
             ..Default::default()
         }

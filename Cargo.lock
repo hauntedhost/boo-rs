@@ -151,6 +151,7 @@ dependencies = [
  "fern",
  "log",
  "lorem-rustum",
+ "nid",
  "rand",
  "ratatui",
  "regex",
@@ -159,7 +160,6 @@ dependencies = [
  "textwrap",
  "tokio",
  "url",
- "uuid",
 ]
 
 [[package]]
@@ -677,6 +677,16 @@ dependencies = [
  "log",
  "wasi",
  "windows-sys 0.48.0",
+]
+
+[[package]]
+name = "nid"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4abdf1789932b85dc39446e27f45a1064a30f9e19a2b872b1d09bd59283f85f3"
+dependencies = [
+ "rand",
+ "thiserror",
 ]
 
 [[package]]
@@ -1349,16 +1359,6 @@ name = "utf-8"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "09cc8ee72d2a9becf2f2febe0205bbed8fc6615b7cb429ad062dc7b7ddd036a9"
-
-[[package]]
-name = "uuid"
-version = "1.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a183cf7feeba97b4dd1c0d46788634f6221d87fa961b305bed08c851829efcc0"
-dependencies = [
- "getrandom",
- "serde",
-]
 
 [[package]]
 name = "version_check"

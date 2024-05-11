@@ -1,9 +1,9 @@
+use crate::names::generate_uuid;
 use crate::socket::request::Request;
 use async_trait::async_trait;
 use log::{error, info};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use tokio::sync::mpsc;
-use uuid::Uuid;
 
 /// This module contains the `Client` struct and ezsockets client implementation.
 /// It handles internal calls and relays messages to the server.
@@ -16,7 +16,7 @@ pub struct Refs {
 impl Default for Refs {
     fn default() -> Self {
         Self {
-            join_ref: Uuid::new_v4().to_string()[..8].to_owned(),
+            join_ref: generate_uuid(),
             message_ref: AtomicUsize::new(1),
         }
     }
