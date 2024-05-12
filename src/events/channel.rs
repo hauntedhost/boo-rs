@@ -47,8 +47,7 @@ pub fn handle_socket_event(app: &mut AppState, socket_event: SocketEvent) {
                 }
                 Response::Shout(shout) => {
                     if !shout.user.uuid.eq(&app.user.uuid) {
-                        let message = format!("{}: {}", shout.user.username, shout.message);
-                        app.add_user_message(message);
+                        app.add_user_message(shout.user, shout.message);
                     }
                 }
                 Response::Unknown => (),

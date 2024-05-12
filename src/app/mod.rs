@@ -4,6 +4,7 @@ use crate::app::{room::Room, user::User};
 use crate::names::generate_valid_room_name;
 use crate::socket::request::Request;
 use crate::ui::widgets::logs::Log;
+use chrono::{DateTime, Utc};
 use ratatui::widgets::TableState;
 use regex::Regex;
 use std::env;
@@ -37,11 +38,20 @@ pub enum RightSidebar {
     Logs,
 }
 
+// TODO: implement SystemError
 #[derive(Clone, Debug)]
 pub enum Message {
     SystemInternal(String),
     SystemPublic(String),
-    User(String),
+    // SystemError(String),
+    User(UserMessage),
+}
+
+#[derive(Clone, Debug)]
+pub struct UserMessage {
+    pub username: String,
+    pub content: String,
+    pub sent_at: DateTime<Utc>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -420,9 +430,12 @@ impl AppState {
         self.messages.clone()
     }
 
-    pub fn add_user_message(&mut self, message: String) {
-        self.add_message(Message::User(message.clone()));
-        // self.maybe_scroll_messages_down()
+    pub fn add_user_message(&mut self, user: User, content: String) {
+        self.add_message(Message::User(UserMessage {
+            username: user.username.clone(),
+            content,
+            sent_at: Utc::now(),
+        }));
     }
 
     pub fn add_system_internal_message(&mut self, message: String) {

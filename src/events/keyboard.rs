@@ -222,8 +222,7 @@ fn handle_submit_message(app: &mut AppState, handle: &ezsockets::Client<client::
     }
 
     // Handle normal messages
-    let local_message = format!("{}: {}", &app.user.username, app.input);
-    app.add_user_message(local_message);
+    app.add_user_message(app.user.clone(), app.input.clone());
 
     // send shout request
     let message = app.input.clone();
@@ -261,8 +260,7 @@ fn handle_command(
 
             for _ in 0..num_lines {
                 let message = LoremRustum::new(28).to_string();
-                let local_message = format!("{}: {}", &app.user.username, message);
-                app.add_user_message(local_message);
+                app.add_user_message(app.user.clone(), message);
             }
         }
         Command::SwitchRoomsFromInput => {
