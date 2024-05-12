@@ -1,6 +1,7 @@
 use crate::app::AppState;
 use crate::app::Focus;
 use crate::app::Onboarding;
+use crate::ui::math::area_width_minus_border;
 use ratatui::prelude::*;
 use ratatui::widgets::*;
 
@@ -70,7 +71,7 @@ pub fn render_widget(frame: &mut Frame, area: Rect, app: &mut AppState) {
     };
 
     // Horizontal scroll when input extends past area width
-    let area_width = area.width - 2;
+    let area_width = area_width_minus_border(area);
     let horizontal_scroll = if input_width > area_width {
         input_width - area_width
     } else {

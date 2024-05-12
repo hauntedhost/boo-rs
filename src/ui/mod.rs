@@ -2,6 +2,7 @@ pub mod math;
 pub mod styles;
 pub mod symbols;
 pub mod widgets;
+use self::math::area_width_minus_border;
 use self::widgets::{header, help, input, messages, sidebars, users};
 use crate::app::{AppState, RightSidebar};
 use ratatui::prelude::*;
@@ -104,7 +105,7 @@ pub fn render(frame: &mut Frame, app: &mut AppState) {
 
     // Cursor
     // Clamp x poition to input area width (see input::render_widget for horizontal scroll logic)
-    let input_area_width = input_area.width - 2;
+    let input_area_width = area_width_minus_border(input_area);
     let x = if app.ui_input_width >= input_area_width {
         input_area.x + input_area_width
     } else {
