@@ -1,6 +1,6 @@
-use chrono::{DateTime, Utc};
-
 use crate::socket::response::Response as SocketResponse;
+use chrono::{DateTime, Utc};
+use std::fmt;
 
 #[derive(Clone, Default, Debug)]
 pub struct Log {
@@ -14,5 +14,11 @@ impl Log {
             response,
             logged_at: Utc::now(),
         }
+    }
+}
+
+impl fmt::Display for Log {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}: {:?}", self.logged_at, self.response)
     }
 }

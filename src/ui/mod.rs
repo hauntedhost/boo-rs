@@ -1,4 +1,3 @@
-pub mod format;
 pub mod math;
 pub mod styles;
 pub mod symbols;

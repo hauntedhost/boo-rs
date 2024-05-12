@@ -1,7 +1,6 @@
 use super::scrolbar;
+use crate::app::message::Message as AppMessage;
 use crate::app::AppState;
-use crate::app::Message as AppMessage;
-use crate::ui::format::Displayable;
 use crate::ui::math::area_height_minus_border;
 use crate::ui::math::get_wrapped_line_counts;
 use crate::ui::styles::get_title_style;
@@ -17,12 +16,12 @@ pub fn render_widget(frame: &mut Frame, area: Rect, app: &mut AppState) {
         .iter()
         .map(|message| match message {
             AppMessage::SystemInternal(message) => Line::from(Span::styled(
-                format!("{} {INTERNAL_MESSAGE_SYMBOL}", message.display()),
+                format!("{} {INTERNAL_MESSAGE_SYMBOL}", message),
                 Style::default().italic().dim(),
             )),
 
             AppMessage::SystemPublic(message) => Line::from(Span::styled(
-                format!("{}", message.display()),
+                format!("{}", message),
                 Style::default().light_blue().italic(),
             )),
             AppMessage::User(message) => {

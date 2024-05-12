@@ -1,17 +1,18 @@
 pub mod log;
+pub mod message;
 pub mod room;
 pub mod user;
+use self::log::Log;
+use self::message::{Message, UserMessage};
 use crate::app::{room::Room, user::User};
 use crate::names::generate_valid_room_name;
 use crate::socket::request::Request;
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use ratatui::widgets::TableState;
 use regex::Regex;
 use std::env;
 use std::time::{Duration, Instant};
 use url::Url;
-
-use self::log::Log;
 
 /// This module contains the AppState struct used to store the state of the application.
 
@@ -38,22 +39,6 @@ pub enum RightSidebar {
     #[default]
     Rooms,
     Logs,
-}
-
-// TODO: implement SystemError
-#[derive(Clone, Debug)]
-pub enum Message {
-    SystemInternal(String),
-    SystemPublic(String),
-    // SystemError(String),
-    User(UserMessage),
-}
-
-#[derive(Clone, Debug)]
-pub struct UserMessage {
-    pub username: String,
-    pub content: String,
-    pub sent_at: DateTime<Utc>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
