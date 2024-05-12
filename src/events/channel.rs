@@ -1,7 +1,7 @@
+use crate::app::log::Log;
 use crate::app::{AppState, SocketStatus};
 use crate::socket::client::SocketEvent;
 use crate::socket::response::Response;
-use crate::ui::widgets::logs::Log;
 
 // TODO: move response handling
 // fn handle_socket_response(app: &mut AppState, json_data: String) {
@@ -18,9 +18,7 @@ pub fn handle_socket_event(app: &mut AppState, socket_event: SocketEvent) {
         SocketEvent::Response(response) => {
             match response {
                 Response::Unknown => (),
-                _ => app.append_log(Log {
-                    response: response.clone(),
-                }),
+                _ => app.append_log(Log::new(response.clone())),
             }
 
             match response {

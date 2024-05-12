@@ -1,15 +1,17 @@
+pub mod log;
 pub mod room;
 pub mod user;
 use crate::app::{room::Room, user::User};
 use crate::names::generate_valid_room_name;
 use crate::socket::request::Request;
-use crate::ui::widgets::logs::Log;
 use chrono::{DateTime, Utc};
 use ratatui::widgets::TableState;
 use regex::Regex;
 use std::env;
 use std::time::{Duration, Instant};
 use url::Url;
+
+use self::log::Log;
 
 /// This module contains the AppState struct used to store the state of the application.
 

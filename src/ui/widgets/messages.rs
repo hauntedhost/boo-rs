@@ -1,5 +1,6 @@
 use super::scrolbar;
 use crate::app::AppState;
+use crate::app::Message as AppMessage;
 use crate::ui::format::Displayable;
 use crate::ui::math::area_height_minus_border;
 use crate::ui::math::get_wrapped_line_counts;
@@ -12,7 +13,30 @@ pub fn render_widget(frame: &mut Frame, area: Rect, app: &mut AppState) {
     let messages = app.get_messages();
     let area_height = area_height_minus_border(area) as usize;
 
-    let lines: Vec<Line> = messages.iter().map(|message| message.to_line()).collect();
+    let lines: Vec<Line> = messages
+        .iter()
+        .map(|message| match message {
+            AppMessage::SystemInternal(message) => Line::from(Span::styled(
+                format!("{} {INTERNAL_MESSAGE_SYMBOL}", message.display()),
+                Style::default().italic().dim(),
+            )),
+
+            AppMessage::SystemPublic(message) => Line::from(Span::styled(
+                format!("{}", message.display()),
+                Style::default().light_blue().italic(),
+            )),
+            AppMessage::User(message) => {
+                let username = message.username.clone();
+                let content = message.content.clone();
+
+                Line::from(vec![
+                    Span::styled(format!("{}: ", username), Style::default().light_green()),
+                    Span::raw(content),
+                ])
+            }
+        })
+        .collect();
+
     let wrapped_line_counts = get_wrapped_line_counts(area, &messages);
     let wrapped_line_count: usize = wrapped_line_counts.iter().sum();
 
