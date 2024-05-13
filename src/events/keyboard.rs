@@ -213,11 +213,14 @@ fn is_quit_key(key: KeyEvent) -> bool {
 }
 
 // clear entire input on backspace if:
-//   - confirming username and input is the username, or
 //   - confirming room and input is room name
+//   - confirming username and input is the username, or
 fn should_clear_all_input(app: &mut AppState) -> bool {
-    (app.onboarding == Onboarding::ConfirmingRoom && app.input == app.room)
-        || (app.onboarding == Onboarding::ConfirmingUsername && app.input == app.user.username)
+    match app.onboarding {
+        Onboarding::ConfirmingRoom if app.input == app.room => true,
+        Onboarding::ConfirmingUsername if app.input == app.user.username => true,
+        _ => false,
+    }
 }
 
 // KeyAction handlers

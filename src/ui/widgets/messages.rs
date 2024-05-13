@@ -16,7 +16,7 @@ pub fn render_widget(frame: &mut Frame, area: Rect, app: &mut AppState) {
         .iter()
         .map(|message| match message {
             AppMessage::SystemInternal(message) => Line::from(Span::styled(
-                format!("{} {INTERNAL_MESSAGE_SYMBOL}", message),
+                format!("{}", message),
                 Style::default().italic().dim(),
             )),
 

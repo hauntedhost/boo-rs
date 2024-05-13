@@ -18,7 +18,7 @@ pub fn render_widget(frame: &mut Frame, area: Rect, app: &mut AppState) {
             };
 
             let line = Line::from(vec![
-                Span::raw("Enter a username"),
+                Span::raw("Choose a username"),
                 Span::styled(" @ ", Style::default().italic()),
                 Span::styled(app.input.clone(), style),
             ]);

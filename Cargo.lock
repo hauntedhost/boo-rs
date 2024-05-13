@@ -826,9 +826,8 @@ dependencies = [
 
 [[package]]
 name = "ratatui"
-version = "0.26.3-alpha.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "37265abea35b5156758c99f8508b654828213d338959348cc730407ffbe38c18"
+version = "0.26.2"
+source = "git+https://github.com/ratatui-org/ratatui.git?rev=76e5fe5a9a1934aa7cce8f0d48c1c9035ac0bf41#76e5fe5a9a1934aa7cce8f0d48c1c9035ac0bf41"
 dependencies = [
  "bitflags 2.5.0",
  "cassowary",
@@ -841,6 +840,7 @@ dependencies = [
  "stability",
  "strum",
  "unicode-segmentation",
+ "unicode-truncate",
  "unicode-width",
 ]
 
@@ -1330,6 +1330,16 @@ name = "unicode-segmentation"
 version = "1.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d4c87d22b6e3f4a18d4d40ef354e97c90fcb14dd91d7dc0aa9d8a1172ebf7202"
+
+[[package]]
+name = "unicode-truncate"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a5fbabedabe362c618c714dbefda9927b5afc8e2a8102f47f081089a9019226"
+dependencies = [
+ "itertools",
+ "unicode-width",
+]
 
 [[package]]
 name = "unicode-width"
