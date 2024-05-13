@@ -26,6 +26,7 @@ enum KeyAction {
     CycleFocus,
     DeleteLastInputChar,
     QuitApp,
+    ReplaceInputWithChar(char),
     ScrollMessagesDown,
     ScrollMessagesUp,
     SelectNextRoom,
@@ -52,6 +53,7 @@ pub fn handle_key_event(
         KeyAction::CycleFocus => app.cycle_focus(),
         KeyAction::DeleteLastInputChar => handle_delete_last_input_char(app),
         KeyAction::QuitApp => app.quit(),
+        KeyAction::ReplaceInputWithChar(c) => app.input = c.to_string(),
         KeyAction::ScrollMessagesDown => app.scroll_messages_down(),
         KeyAction::ScrollMessagesUp => app.scroll_messages_up(),
         KeyAction::SelectNextRoom => app.select_next_room(),
@@ -167,6 +169,10 @@ fn parse_key_action(app: &mut AppState, key: KeyEvent) -> KeyAction {
     }
 
     if let KeyCode::Char(c) = key.code {
+        if should_clear_all_input(app) {
+            return KeyAction::ReplaceInputWithChar(c);
+        }
+
         match app.onboarding {
             Onboarding::Completed => {
                 return if app.input.starts_with("/") {
