@@ -5,31 +5,15 @@ use crate::ui::symbols::*;
 use ratatui::prelude::*;
 use ratatui::widgets::*;
 
+pub struct Header;
+
 pub fn render_widget(frame: &mut Frame, area: Rect, app: &AppState) {
-    let widget = build_widget(
-        app.input.clone(),
-        app.get_username(),
-        app.room.clone(),
-        app.onboarding,
-        app.socket_url.clone(),
-        app.socket_status.clone(),
-        app.is_socket_active(),
-    );
-    frame.render_widget(widget, area);
-}
+    let socket_url = app.socket_url.clone().unwrap_or_else(|| "".to_string());
+    let input = app.get_input();
+    let room = app.get_room();
+    let username = app.get_username();
 
-fn build_widget(
-    input: String,
-    username: String,
-    room: String,
-    onboarding: Onboarding,
-    socket_url: Option<String>,
-    socket_status: SocketStatus,
-    is_socket_active: bool,
-) -> Table<'static> {
-    let socket_url = socket_url.unwrap_or_else(|| "".to_string());
-
-    let (username, sep, room) = match onboarding {
+    let (username, sep, room) = match app.onboarding {
         Onboarding::ConfirmingUsername => {
             let username = if input == username { username } else { input };
             (username, "".to_string(), "".to_string())
@@ -41,13 +25,13 @@ fn build_widget(
         Onboarding::Completed => (username, format!(" {HASH_SYMBOL} "), room),
     };
 
-    let socket_symbol = if is_socket_active {
+    let socket_symbol = if app.is_socket_active() {
         SOCKET_ACTIVE_SYMBOL
     } else {
         SOCKET_STATUS_SYMBOL
     };
 
-    let socket_style = match socket_status {
+    let socket_style = match app.socket_status {
         SocketStatus::Closed => Style::default().dim(),
         SocketStatus::Connected => Style::default().light_blue().bold(),
         SocketStatus::ConnectFailed => Style::default().light_red().not_dim(),
@@ -82,7 +66,7 @@ fn build_widget(
         Constraint::Fill(1),
     ];
 
-    let table = Table::new(rows, widths)
+    let widget = Table::new(rows, widths)
         .column_spacing(1)
         .flex(layout::Flex::Legacy)
         .block(
@@ -93,5 +77,5 @@ fn build_widget(
         )
         .style(Style::new().dim());
 
-    table
+    frame.render_widget(widget, area);
 }

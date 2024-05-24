@@ -5,7 +5,7 @@ use serde_json::{json, Value as SerdeValue};
 
 // This module contains the Request struct used to create requests to be sent to the server.
 
-const TOPIC_PREFIX: &str = "relay:";
+const TOPIC_PREFIX: &str = "chat:";
 
 // TODO: maybe Request should be an enum, e.g. Heartbeat, Join, Leave, Shout
 #[derive(Clone, Debug)]

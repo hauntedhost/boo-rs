@@ -241,6 +241,10 @@ impl AppState {
 
     // input
 
+    pub fn get_input(&self) -> String {
+        self.input.clone()
+    }
+
     pub fn input_is_valid_command(&self) -> bool {
         let re = Regex::new(r"^\/[a-zA-Z0-9]{1,10}($| [a-zA-Z0-9\-]{1,30}$)").unwrap();
         re.is_match(&self.input)
@@ -285,6 +289,10 @@ impl AppState {
     }
 
     // rooms
+
+    pub fn get_room(&self) -> String {
+        self.room.clone()
+    }
 
     pub fn get_rooms(&self) -> Vec<Room> {
         self.rooms.clone()
